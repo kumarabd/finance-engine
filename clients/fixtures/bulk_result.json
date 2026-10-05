@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "allocations": [
+        {
+          "amount_minor": 1234
+        }
+      ],
+      "amount_minor": 1234,
+      "created_at": "2026-10-05T13:12:49.152152Z",
+      "currency": "USD",
+      "deleted_at": null,
+      "description": "IMPORT",
+      "evidence_ids": [
+        "123262fa-719c-437d-aefd-1cbbe0d439ef"
+      ],
+      "id": "5539f5af-c556-4263-a112-587ddd1c3d46",
+      "kind": "expense",
+      "occurred_on": "2026-10-02",
+      "source": "import",
+      "source_record_id": "fx-imp-1",
+      "updated_at": "2026-10-05T13:12:49.152152Z",
+      "version": 1
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+openapi: 3.1.0
+info:
+  title: Finance API (legacy prototype)
+  version: 0.1.0
+  description: Compatibility reads from legacy tables. New spend records use the operation API described in openapi.json.
+servers:
+  - url: /finance/api/v1
+    description: Identity router
+paths:
+  /accounts:
+    get:
+      operationId: listAccounts
+      summary: List the signed-in user's accounts
+      security: [{ clerkBearer: [] }]
+      responses:
+        '200':
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accounts]
+                properties:
+                  accounts:
+                    type: array
+                    items: { $ref: '#/components/schemas/Account' }
+        '401': { $ref: '#/components/responses/Error' }
+  /transactions:
+    get:
+      operationId: listTransactions
+      summary: List recent transactions, newest first
+      security: [{ clerkBearer: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [transactions]
+                properties:
+                  transactions:
+                    type: array
+                    items: { $ref: '#/components/schemas/Transaction' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    clerkBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: The identity router verifies this token before forwarding the request.
+  responses:
+    Error:
+      description: Request failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Account:
+      type: object
+      required: [id, name, kind, currency, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind:
+          type: string
+          enum: [checking, savings, credit, cash, investment, loan, other]
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        created_at: { type: string, format: date-time }
+    Transaction:
+      type: object
+      required: [id, account_id, posted_at, amount_minor, currency, description]
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        posted_at: { type: string, format: date-time }
+        amount_minor: { type: integer, format: int64, description: Positive for an inflow }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        description: { type: string }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }

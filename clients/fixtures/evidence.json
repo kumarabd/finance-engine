@@ -1,0 +1,12 @@
+{
+  "checksum": "abc",
+  "created_at": "2026-10-05T13:12:49.149387Z",
+  "deleted_at": null,
+  "id": "123262fa-719c-437d-aefd-1cbbe0d439ef",
+  "media_type": "application/pdf",
+  "notes": "Read on this device",
+  "source_ref": "local-file:abc",
+  "title": "stmt.pdf",
+  "updated_at": "2026-10-05T13:12:49.149387Z",
+  "version": 1
+}

@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "duplicate",
+    "message": "That name or alias is already in use"
+  }
+}

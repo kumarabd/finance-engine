@@ -1,0 +1,34 @@
+{
+  "items": [
+    {
+      "actor": "user_fixture",
+      "after": {
+        "allocations": [
+          {
+            "amount_minor": 550,
+            "category_id": "e443da12-8480-429a-a03b-b2f8114b29c6"
+          }
+        ],
+        "amount_minor": 550,
+        "created_at": "2026-10-05T13:12:49.14083Z",
+        "currency": "USD",
+        "deleted_at": null,
+        "description": "Latte",
+        "id": "48f6de14-1fad-4de9-938a-7da109b7b65e",
+        "kind": "expense",
+        "merchant_id": "dd4b6816-2263-407c-a79a-3323f5511d87",
+        "occurred_on": "2026-10-04",
+        "source": "android",
+        "source_record_id": "fx-1",
+        "updated_at": "2026-10-05T13:12:49.14083Z",
+        "version": 1
+      },
+      "before": null,
+      "id": "e3358909-5a6b-460b-8373-07d50d7e9ec2",
+      "occurred_at": "2026-10-05T13:12:49.143293Z",
+      "operation": "spends_create"
+    }
+  ],
+  "next_offset": null,
+  "total": 1
+}

@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "duplicate",
+    "message": "A record with that name or source identity already exists"
+  }
+}

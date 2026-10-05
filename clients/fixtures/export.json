@@ -1,0 +1,5 @@
+{
+  "csv": "id,version,occurred_on,kind,amount_minor,currency,merchant,description,account_ref,category_allocations,tags,evidence_ids,original_spend_id,source,source_record_id,deleted_at\n48f6de14-1fad-4de9-938a-7da109b7b65e,1,2026-10-04,expense,550,USD,Blue Bottle,Latte,,\"[{\"\"amount_minor\"\":550,\"\"category\"\":\"\"Coffee\"\"}]\",[],[],,android,fx-1,\ne178551a-f85f-4537-8bc2-b28b616d6340,1,2026-10-03,refund,200,USD,,Return,,\"[{\"\"amount_minor\"\":200,\"\"category\"\":\"\"Uncategorized\"\"}]\",[],[],,,,\n5539f5af-c556-4263-a112-587ddd1c3d46,1,2026-10-02,expense,1234,USD,,IMPORT,,\"[{\"\"amount_minor\"\":1234,\"\"category\"\":\"\"Uncategorized\"\"}]\",[],\"[\"\"123262fa-719c-437d-aefd-1cbbe0d439ef\"\"]\",,import,fx-imp-1,\n",
+  "next_offset": null,
+  "total": 3
+}

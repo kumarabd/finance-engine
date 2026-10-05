@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "aliases": [
+        "BLUEBOTTLE"
+      ],
+      "created_at": "2026-10-05T13:12:49.129753Z",
+      "deleted_at": null,
+      "id": "dd4b6816-2263-407c-a79a-3323f5511d87",
+      "kind": "merchant",
+      "name": "Blue Bottle",
+      "updated_at": "2026-10-05T13:12:49.129753Z",
+      "version": 1
+    }
+  ],
+  "next_offset": null,
+  "total": 1
+}

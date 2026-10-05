@@ -1,0 +1,25 @@
+{
+  "comparison": [],
+  "current": [
+    {
+      "count": 1,
+      "currency": "USD",
+      "expense_minor": "550",
+      "key": "e443da12-8480-429a-a03b-b2f8114b29c6",
+      "label": "Coffee",
+      "net_minor": "550",
+      "refund_minor": "0"
+    },
+    {
+      "count": 2,
+      "currency": "USD",
+      "expense_minor": "1234",
+      "key": "uncategorized",
+      "label": "Uncategorized",
+      "net_minor": "1034",
+      "refund_minor": "200"
+    }
+  ],
+  "group_by": "category",
+  "groups_overlap": false
+}

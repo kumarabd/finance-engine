@@ -1,0 +1,241 @@
+package engine
+
+import (
+	"encoding/json"
+	"time"
+)
+
+type Principal struct{ Owner, Actor string }
+type Meta struct {
+	IdempotencyKey string `json:"idempotency_key" jsonschema:"Unique request key, 1-128 characters. Reuse only to retry exactly the same operation and input."`
+}
+type Versioned struct {
+	ID              string `json:"id" jsonschema:"Record UUID."`
+	ExpectedVersion int64  `json:"expected_version" jsonschema:"Version last read; stale edits return conflict."`
+}
+type GetInput struct {
+	ID string `json:"id"`
+}
+type PageInput struct {
+	Limit  int    `json:"limit,omitempty" jsonschema:"Page size, default 50, maximum 200."`
+	Offset int    `json:"offset,omitempty" jsonschema:"Zero-based offset."`
+	State  string `json:"state,omitempty" jsonschema:"active (default), deleted, or all."`
+	Search string `json:"search,omitempty" jsonschema:"Case-insensitive literal substring."`
+}
+type Page[T any] struct {
+	Items      []T  `json:"items"`
+	Total      int  `json:"total"`
+	NextOffset *int `json:"next_offset"`
+}
+type Allocation struct {
+	CategoryID  string `json:"category_id,omitempty" jsonschema:"Category UUID; omit for uncategorized."`
+	AmountMinor int64  `json:"amount_minor" jsonschema:"Positive integer minor units. All allocations must sum exactly to the spend amount."`
+}
+type SpendInput struct {
+	OccurredOn      string       `json:"occurred_on" jsonschema:"Calendar date YYYY-MM-DD; no timezone conversion."`
+	Kind            string       `json:"kind" jsonschema:"expense, refund, or transfer. Transfers are excluded from spending analysis."`
+	AmountMinor     int64        `json:"amount_minor" jsonschema:"Positive amount in currency minor units, maximum 9007199254740991."`
+	Currency        string       `json:"currency" jsonschema:"Three uppercase letters. Currencies are never silently combined or converted."`
+	MerchantID      string       `json:"merchant_id,omitempty"`
+	Description     string       `json:"description,omitempty"`
+	AccountRef      string       `json:"account_ref,omitempty" jsonschema:"Optional supporting account reference; no account setup required."`
+	OriginalSpendID string       `json:"original_spend_id,omitempty" jsonschema:"Optional expense UUID for a refund, in the same currency."`
+	Source          string       `json:"source,omitempty" jsonschema:"Optional source namespace, paired with source_record_id for duplicate prevention."`
+	SourceRecordID  string       `json:"source_record_id,omitempty"`
+	Allocations     []Allocation `json:"allocations,omitempty" jsonschema:"Category splits. Omit for one uncategorized allocation."`
+	TagIDs          []string     `json:"tag_ids,omitempty"`
+	EvidenceIDs     []string     `json:"evidence_ids,omitempty"`
+}
+type Spend struct {
+	SpendInput
+	ID        string     `json:"id"`
+	Version   int64      `json:"version"`
+	DeletedAt *time.Time `json:"deleted_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+type CreateSpendInput struct {
+	Meta
+	Spend SpendInput `json:"spend"`
+}
+type UpdateSpendInput struct {
+	Meta
+	Versioned
+	Spend SpendInput `json:"spend" jsonschema:"Complete replacement of editable fields. Omitted optional fields are cleared."`
+}
+type LifecycleInput struct {
+	Meta
+	Versioned
+}
+type BulkCreateInput struct {
+	Meta
+	Spends []SpendInput `json:"spends" jsonschema:"1-100 records; the entire batch succeeds or rolls back."`
+}
+type SpendPatch struct {
+	OccurredOn      *string       `json:"occurred_on,omitempty"`
+	Kind            *string       `json:"kind,omitempty"`
+	AmountMinor     *int64        `json:"amount_minor,omitempty"`
+	Currency        *string       `json:"currency,omitempty"`
+	MerchantID      *string       `json:"merchant_id,omitempty" jsonschema:"Empty string removes merchant."`
+	Description     *string       `json:"description,omitempty"`
+	AccountRef      *string       `json:"account_ref,omitempty"`
+	OriginalSpendID *string       `json:"original_spend_id,omitempty"`
+	CategoryID      *string       `json:"category_id,omitempty" jsonschema:"Replace all splits with this category; empty string means uncategorized."`
+	Allocations     *[]Allocation `json:"allocations,omitempty"`
+	TagIDs          *[]string     `json:"tag_ids,omitempty" jsonschema:"Replace all tags, including empty array to clear."`
+	AddTagIDs       []string      `json:"add_tag_ids,omitempty"`
+	RemoveTagIDs    []string      `json:"remove_tag_ids,omitempty"`
+	EvidenceIDs     *[]string     `json:"evidence_ids,omitempty" jsonschema:"Replace evidence links; empty array detaches all."`
+}
+type BulkUpdateInput struct {
+	Meta
+	Records []Versioned `json:"records"`
+	Patch   SpendPatch  `json:"patch"`
+}
+type BulkLifecycleInput struct {
+	Meta
+	Records []Versioned `json:"records"`
+}
+type SpendsResult struct {
+	Items []Spend `json:"items"`
+}
+
+type DimensionInput struct {
+	Name    string   `json:"name"`
+	Aliases []string `json:"aliases,omitempty" jsonschema:"Merchant aliases only. Categories and tags use an empty list."`
+}
+type Dimension struct {
+	DimensionInput
+	ID        string     `json:"id"`
+	Kind      string     `json:"kind"`
+	Version   int64      `json:"version"`
+	DeletedAt *time.Time `json:"deleted_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+type CreateDimensionInput struct {
+	Meta
+	DimensionInput
+}
+type UpdateDimensionInput struct {
+	Meta
+	Versioned
+	DimensionInput
+}
+type DeleteDimensionInput struct {
+	Meta
+	Versioned
+	ReplacementID      string `json:"replacement_id,omitempty" jsonschema:"Required when referenced. Reassign all current references, including deleted spends, atomically."`
+	ReplacementVersion int64  `json:"replacement_version,omitempty"`
+}
+type MergeDimensionInput struct {
+	Meta
+	Versioned
+	TargetID      string `json:"target_id"`
+	TargetVersion int64  `json:"target_version"`
+}
+type MergeResult struct {
+	Source        Dimension `json:"source"`
+	Target        Dimension `json:"target"`
+	ChangedSpends int       `json:"changed_spends"`
+}
+
+type EvidenceInput struct {
+	Title     string `json:"title"`
+	SourceRef string `json:"source_ref" jsonschema:"Opaque document ID or URI. Engine stores the reference and never fetches it."`
+	MediaType string `json:"media_type,omitempty"`
+	Checksum  string `json:"checksum,omitempty"`
+	Notes     string `json:"notes,omitempty"`
+}
+type Evidence struct {
+	EvidenceInput
+	ID        string     `json:"id"`
+	Version   int64      `json:"version"`
+	DeletedAt *time.Time `json:"deleted_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+type CreateEvidenceInput struct {
+	Meta
+	EvidenceInput
+}
+type UpdateEvidenceInput struct {
+	Meta
+	Versioned
+	EvidenceInput
+}
+type DeleteEvidenceInput struct {
+	Meta
+	Versioned
+	Detach bool `json:"detach,omitempty" jsonschema:"Explicitly detach all current links before deleting. Otherwise linked evidence returns conflict."`
+}
+type EvidenceLinkInput struct {
+	Meta
+	Versioned
+	EvidenceID string `json:"evidence_id"`
+}
+
+type Filter struct {
+	From            string   `json:"from,omitempty" jsonschema:"Inclusive calendar date YYYY-MM-DD."`
+	To              string   `json:"to,omitempty" jsonschema:"Inclusive calendar date YYYY-MM-DD."`
+	Kind            string   `json:"kind,omitempty"`
+	Currency        string   `json:"currency,omitempty"`
+	MerchantID      string   `json:"merchant_id,omitempty"`
+	CategoryID      string   `json:"category_id,omitempty"`
+	Uncategorized   bool     `json:"uncategorized,omitempty"`
+	TagIDs          []string `json:"tag_ids,omitempty" jsonschema:"All supplied tags must match."`
+	AccountRef      string   `json:"account_ref,omitempty"`
+	EvidenceID      string   `json:"evidence_id,omitempty"`
+	OriginalSpendID string   `json:"original_spend_id,omitempty"`
+	MinAmount       *int64   `json:"min_amount_minor,omitempty"`
+	MaxAmount       *int64   `json:"max_amount_minor,omitempty"`
+	Search          string   `json:"search,omitempty" jsonschema:"Literal substring across description, merchant name, aliases and account reference."`
+	State           string   `json:"state,omitempty" jsonschema:"active (default), deleted, or all."`
+}
+type SearchInput struct {
+	Filter
+	Limit  int    `json:"limit,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+	Sort   string `json:"sort,omitempty" jsonschema:"date_desc (default), date_asc, amount_desc, amount_asc. Amount sorting requires a currency filter."`
+}
+type ExportInput struct{ SearchInput }
+type ExportResult struct {
+	CSV        string `json:"csv"`
+	Total      int    `json:"total"`
+	NextOffset *int   `json:"next_offset"`
+}
+type AnalysisInput struct {
+	Filter
+	GroupBy     string `json:"group_by,omitempty" jsonschema:"total (default), category, merchant, tag, day, week, or month. Each group remains separated by currency."`
+	CompareFrom string `json:"compare_from,omitempty"`
+	CompareTo   string `json:"compare_to,omitempty"`
+}
+type Bucket struct {
+	Currency     string `json:"currency"`
+	Key          string `json:"key"`
+	Label        string `json:"label"`
+	ExpenseMinor string `json:"expense_minor" jsonschema:"Exact integer string; aggregate totals can exceed JavaScript's safe integer range."`
+	RefundMinor  string `json:"refund_minor"`
+	NetMinor     string `json:"net_minor"`
+	Count        int64  `json:"count"`
+}
+type Analysis struct {
+	GroupsOverlap bool     `json:"groups_overlap"`
+	Current       []Bucket `json:"current"`
+	Comparison    []Bucket `json:"comparison"`
+	GroupBy       string   `json:"group_by"`
+}
+type HistoryInput struct {
+	EntityType string `json:"entity_type" jsonschema:"spend, category, tag, merchant, or evidence."`
+	ID         string `json:"id"`
+	Limit      int    `json:"limit,omitempty"`
+	Offset     int    `json:"offset,omitempty"`
+}
+type Change struct {
+	ID         string          `json:"id"`
+	OccurredAt time.Time       `json:"occurred_at"`
+	Actor      string          `json:"actor"`
+	Operation  string          `json:"operation"`
+	Before     json.RawMessage `json:"before"`
+	After      json.RawMessage `json:"after"`
+}

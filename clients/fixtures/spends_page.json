@@ -1,0 +1,66 @@
+{
+  "items": [
+    {
+      "allocations": [
+        {
+          "amount_minor": 550,
+          "category_id": "e443da12-8480-429a-a03b-b2f8114b29c6"
+        }
+      ],
+      "amount_minor": 550,
+      "created_at": "2026-10-05T13:12:49.14083Z",
+      "currency": "USD",
+      "deleted_at": null,
+      "description": "Latte",
+      "id": "48f6de14-1fad-4de9-938a-7da109b7b65e",
+      "kind": "expense",
+      "merchant_id": "dd4b6816-2263-407c-a79a-3323f5511d87",
+      "occurred_on": "2026-10-04",
+      "source": "android",
+      "source_record_id": "fx-1",
+      "updated_at": "2026-10-05T13:12:49.14083Z",
+      "version": 1
+    },
+    {
+      "allocations": [
+        {
+          "amount_minor": 200
+        }
+      ],
+      "amount_minor": 200,
+      "created_at": "2026-10-05T13:12:49.145853Z",
+      "currency": "USD",
+      "deleted_at": null,
+      "description": "Return",
+      "id": "e178551a-f85f-4537-8bc2-b28b616d6340",
+      "kind": "refund",
+      "occurred_on": "2026-10-03",
+      "updated_at": "2026-10-05T13:12:49.145853Z",
+      "version": 1
+    },
+    {
+      "allocations": [
+        {
+          "amount_minor": 1234
+        }
+      ],
+      "amount_minor": 1234,
+      "created_at": "2026-10-05T13:12:49.152152Z",
+      "currency": "USD",
+      "deleted_at": null,
+      "description": "IMPORT",
+      "evidence_ids": [
+        "123262fa-719c-437d-aefd-1cbbe0d439ef"
+      ],
+      "id": "5539f5af-c556-4263-a112-587ddd1c3d46",
+      "kind": "expense",
+      "occurred_on": "2026-10-02",
+      "source": "import",
+      "source_record_id": "fx-imp-1",
+      "updated_at": "2026-10-05T13:12:49.152152Z",
+      "version": 1
+    }
+  ],
+  "next_offset": null,
+  "total": 3
+}
