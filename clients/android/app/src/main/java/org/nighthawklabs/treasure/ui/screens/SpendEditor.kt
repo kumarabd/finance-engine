@@ -17,8 +17,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +41,7 @@ import org.nighthawklabs.treasure.net.Api
 import org.nighthawklabs.treasure.net.problem
 import org.nighthawklabs.treasure.ui.components.AnimatedAmount
 import org.nighthawklabs.treasure.ui.components.Chip
+import org.nighthawklabs.treasure.ui.components.MultiPickerSheet
 import org.nighthawklabs.treasure.ui.components.rememberHaptics
 import org.nighthawklabs.treasure.ui.theme.HeroStyle
 import org.nighthawklabs.treasure.ui.theme.Treasure
@@ -72,6 +76,14 @@ fun SpendEditor(session: Session, target: EditorTarget, onDismiss: () -> Unit) {
     var merchant by remember { mutableStateOf(directory.merchant(original?.merchantId) ?: "") }
     var categoryId by remember { mutableStateOf(original?.allocations?.takeIf { it.size == 1 }?.first()?.categoryId) }
     var note by remember { mutableStateOf(original?.description ?: "") }
+    var account by remember { mutableStateOf(original?.accountRef ?: "") }
+    var splitRows by remember { mutableStateOf(Splits.rows(original?.allocations)) }
+    var editingSplits by remember { mutableStateOf(false) }
+    var originalId by remember { mutableStateOf(original?.originalSpendId) }
+    var originalText by remember { mutableStateOf("") }
+    var pickOriginal by remember { mutableStateOf(false) }
+    var tagIds by remember { mutableStateOf(original?.tagIds.orEmpty().toSet()) }
+    var pickTags by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var pickDate by remember { mutableStateOf(false) }
@@ -82,15 +94,22 @@ fun SpendEditor(session: Session, target: EditorTarget, onDismiss: () -> Unit) {
 
     val merchants by directory.merchants.collectAsState()
     val spendsState by store.state.collectAsState()
-    val splits = (original?.allocations?.size ?: 0) > 1
+    val isSplit = splitRows.size > 1
+    val splitProblem = Splits.problem(entry.minor, splitRows, currency)
     val typing = merchantFocused || noteFocused
-    val canSave = entry.minor > 0 && !saving
+    val canSave = entry.minor > 0 && !saving && splitProblem == null
 
     fun fill(s: Spend) {
         original = s; entry = AmountEntry.of(s.amountMinor); kind = s.kind; currency = s.currency
         date = runCatching { LocalDate.parse(s.occurredOn) }.getOrDefault(LocalDate.now())
-        merchant = directory.merchant(s.merchantId) ?: ""; note = s.description ?: ""
+        merchant = directory.merchant(s.merchantId) ?: ""; note = s.description ?: ""; tagIds = s.tagIds.orEmpty().toSet()
         categoryId = s.allocations?.takeIf { it.size == 1 }?.first()?.categoryId
+        account = s.accountRef ?: ""; splitRows = Splits.rows(s.allocations); originalId = s.originalSpendId
+    }
+
+    LaunchedEffect(originalId) {
+        val id = originalId
+        originalText = if (id == null) "" else session.spends.lookup(id)?.let { originalLabel(it, directory) } ?: "Expense"
     }
 
     fun close() { scope.launch { sheet.hide(); onDismiss() } }
@@ -116,7 +135,13 @@ fun SpendEditor(session: Session, target: EditorTarget, onDismiss: () -> Unit) {
             }
             var input = o?.let(::SpendInput) ?: SpendInput(date.toString(), kind, 0, currency)
             input = input.copy(occurredOn = date.toString(), kind = kind, currency = currency, merchantId = merchantId, description = note.trim().ifEmpty { null })
-            if (!splits) input = input.copy(amountMinor = entry.minor, allocations = categoryId?.let { listOf(Allocation(it, entry.minor)) })
+            input = input.copy(tagIds = tagIds.sorted().ifEmpty { null })
+            input = input.copy(
+                amountMinor = entry.minor,
+                allocations = if (isSplit) Splits.allocations(splitRows) else categoryId?.let { listOf(Allocation(it, entry.minor)) },
+                accountRef = account.trim().ifEmpty { null },
+                originalSpendId = if (kind == "refund") originalId else null,
+            )
             if (o == null) input = input.copy(source = "android", sourceRecordId = key)
 
             val r: Api<Spend> = when {
@@ -177,12 +202,26 @@ fun SpendEditor(session: Session, target: EditorTarget, onDismiss: () -> Unit) {
                 else merchants.values.filter { it.name.lowercase().startsWith(typedLower) && it.name.lowercase() != typedLower }.sortedBy { it.name }.take(5)
                 if (hints.isNotEmpty()) LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(hints, key = { it.id }) { Chip(it.name, false) { merchant = it.name } } }
 
-                if (splits) Text("Split across ${original?.allocations?.size} categories. Editing splits isn't available yet.", color = t.muted, style = MaterialTheme.typography.bodySmall)
-                else {
-                    val cats = remember(spendsState.spends, directory.categories.collectAsState().value) { directory.categoriesByUse(spendsState.spends) }
+                val cats = remember(spendsState.spends, directory.categories.collectAsState().value) { directory.categoriesByUse(spendsState.spends) }
+                if (isSplit) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Split across ${splitRows.size} categories", Modifier.weight(1f).testTag("split-summary"))
+                    TextButton(onClick = { editingSplits = true }) { Text("Edit") }
+                    TextButton(onClick = { splitRows = emptyList() }) { Text("Remove") }
+                } else {
                     if (cats.isNotEmpty()) LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(cats, key = { it.id }) { c -> Chip(c.name, categoryId == c.id) { categoryId = if (categoryId == c.id) null else c.id } }
                     }
+                    if (entry.minor > 1) TextButton(onClick = { splitRows = Splits.start(categoryId, entry.minor); editingSplits = true }, modifier = Modifier.testTag("split-start")) { Text("Split across categories") }
+                }
+
+                val allTags by directory.tags.collectAsState()
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(tagIds.sorted(), key = { it }) { id ->
+                        InputChip(selected = true, onClick = { tagIds = tagIds - id }, label = { Text(allTags[id]?.name ?: "Tag") },
+                            trailingIcon = { Icon(Icons.Filled.Close, "Remove tag ${allTags[id]?.name ?: ""}", Modifier.size(18.dp)) },
+                            colors = InputChipDefaults.inputChipColors(selectedContainerColor = t.accent, selectedLabelColor = t.onAccent, selectedTrailingIconColor = t.onAccent))
+                    }
+                    item { AssistChip(modifier = Modifier.testTag("add-tags"), onClick = { pickTags = true }, label = { Text(if (tagIds.isEmpty()) "Add tags" else "Add") }, leadingIcon = { Icon(Icons.Filled.Sell, null, Modifier.size(18.dp)) }) }
                 }
 
                 Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(14.dp)).background(t.raised).clickable { pickDate = true }.padding(horizontal = 14.dp),
@@ -190,17 +229,33 @@ fun SpendEditor(session: Session, target: EditorTarget, onDismiss: () -> Unit) {
                     Text("Date", color = t.muted, modifier = Modifier.weight(1f))
                     Text(DayGroups.title(date.toString()))
                 }
+                if (kind == "refund") Row(Modifier.testTag("refund-row").fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(14.dp)).background(t.raised).clickable { pickOriginal = true }.padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Refund of", color = t.muted, modifier = Modifier.weight(1f))
+                    Text(if (originalId == null) "None" else originalText, maxLines = 1)
+                }
+                Field(account, { account = it }, "Account (optional)", onFocus = { noteFocused = it })
                 Field(note, { note = it }, "Note", onFocus = { noteFocused = it })
                 error?.let { Text(it, color = t.critical) }
                 Spacer(Modifier.height(8.dp))
             }
             AnimatedVisibility(!typing, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
-                Keypad(enabled = !splits) { k ->
+                Keypad(enabled = true) { k ->
                     haptics.tick()
                     entry = if (k == "⌫") entry.backspace() else entry.press(k)
                 }
             }
         }
+    }
+
+    if (editingSplits) {
+        SplitSheet(session, splitRows, entry.minor, currency, { splitRows = it }, onDone = { editingSplits = false; if (splitRows.size < 2) { categoryId = splitRows.firstOrNull()?.categoryId; splitRows = emptyList() } })
+    }
+    if (pickOriginal) OriginalPicker(session, currency, originalId, { id, label -> originalId = id; originalText = label }, { pickOriginal = false })
+
+    if (pickTags) {
+        MultiPickerSheet("Tags", directory.tagsByUse(spendsState.spends), tagIds, { tagIds = it }, { pickTags = false },
+            create = { name -> (directory.resolveTag(name) as? Api.Ok)?.value }, emptyHint = "No tags yet. Type a name to create one.")
     }
 
     if (pickDate) {
@@ -234,7 +289,7 @@ private fun Keypad(enabled: Boolean, onKey: (String) -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { k ->
                     Box(
-                        Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(14.dp)).background(t.surface).border(1.dp, t.hairline, RoundedCornerShape(14.dp))
+                        Modifier.testTag("key-$k").weight(1f).height(56.dp).clip(RoundedCornerShape(14.dp)).background(t.surface).border(1.dp, t.hairline, RoundedCornerShape(14.dp))
                             .clickable(enabled = enabled) { onKey(k) }.semantics { contentDescription = if (k == "⌫") "Delete" else k },
                         contentAlignment = Alignment.Center,
                     ) {

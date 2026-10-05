@@ -174,3 +174,48 @@ class TagDirectoryTest {
         assertEquals(listOf("Beta", "Alpha"), d.tagNames(listOf("b", "gone", "a")))
     }
 }
+
+class FilterChipTest {
+    private fun chips(f: SpendFilter) = f.chips({ mapOf("c1" to "Coffee")[it] }, { mapOf("m1" to "Starbucks")[it] }, { mapOf("t1" to "trip", "t2" to "work")[it] })
+
+    @Test fun nothingActiveMeansNoChips() { assertTrue(chips(SpendFilter()).isEmpty()) }
+
+    @Test fun eachConditionIsOneChipWithAReadableLabel() {
+        val f = SpendFilter(search = "latte", kind = "refund", currency = "USD", categoryId = "c1", merchantId = "m1", tagIds = listOf("t1", "t2"), minAmountMinor = 500, maxAmountMinor = 2000)
+        assertEquals(listOf("“latte”", "Refunds", "USD", "Coffee", "Starbucks", "#trip", "#work", "\$5.00 – \$20.00"), chips(f).map { it.label }.map { it.replace(' ', ' ') })
+    }
+
+    @Test fun clearingAChipRemovesOnlyItsOwnCondition() {
+        val f = SpendFilter(kind = "expense", tagIds = listOf("t1", "t2"), categoryId = "c1")
+        val after = chips(f).first { it.id == "tag-t1" }.clear(f)
+        assertEquals(listOf("t2"), after.tagIds); assertEquals("expense", after.kind); assertEquals("c1", after.categoryId)
+    }
+
+    @Test fun droppingTheCurrencyAlsoDropsWhatOnlyMakesSenseWithOne() {
+        val f = SpendFilter(currency = "USD", sort = "amount_desc", minAmountMinor = 100)
+        val after = chips(f).first { it.id == "currency" }.clear(f)
+        assertNull(after.currency); assertEquals("date_desc", after.sort); assertNull(after.minAmountMinor)
+    }
+
+    @Test fun uncategorizedIsItsOwnChip() { assertEquals(listOf("Uncategorized"), chips(SpendFilter(uncategorized = true)).map { it.label }) }
+
+    @Test fun dateRangeLabelsHandleOpenEnds() {
+        assertTrue(chips(SpendFilter(from = "2026-10-01"))[0].label.startsWith("From"))
+        assertTrue(chips(SpendFilter(to = "2026-10-31"))[0].label.startsWith("Until"))
+    }
+
+    @Test fun datePresets() {
+        val today = java.time.LocalDate.of(2026, 10, 15)
+        assertEquals("2026-10-01" to "2026-10-15", DatePreset.ThisMonth.range(today))
+        assertEquals("2026-09-01" to "2026-09-30", DatePreset.LastMonth.range(today))
+        assertEquals("2026-09-16" to "2026-10-15", DatePreset.Last30.range(today))
+        assertEquals(DatePreset.LastMonth, DatePreset.matching("2026-09-01", "2026-09-30", today))
+        assertEquals(DatePreset.Custom, DatePreset.matching("2026-01-01", null, today))
+        assertEquals(DatePreset.Any, DatePreset.matching(null, null, today))
+    }
+
+    @Test fun amountFieldsAreReadInTheCurrencysOwnUnits() {
+        assertEquals(1250L, Money.parseMinor("12.50", "USD")); assertEquals(1200L, Money.parseMinor("1,200", "JPY"))
+        assertEquals(500L, Money.parseMinor("5", "USD")); assertNull(Money.parseMinor("abc", "USD"))
+    }
+}

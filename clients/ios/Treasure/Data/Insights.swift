@@ -43,6 +43,7 @@ struct Snapshot: Equatable {
     var trend: Analysis
     var categories: Analysis
     var merchants: Analysis
+    var tags: Analysis
 
     /// Currencies present in the window, biggest spend first. They are never combined.
     var currencies: [String] {
@@ -84,16 +85,18 @@ struct Insights {
         async let trend: Api<Analysis> = engine.call("spending_analyze", AnalysisInput(from: w.from, to: w.to, groupBy: period.trendGroup, compareFrom: w.compareFrom, compareTo: w.compareTo))
         async let cats: Api<Analysis> = engine.call("spending_analyze", AnalysisInput(from: w.from, to: w.to, groupBy: "category"))
         async let merchants: Api<Analysis> = engine.call("spending_analyze", AnalysisInput(from: w.from, to: w.to, groupBy: "merchant"))
-        let (t, c, m) = await (trend, cats, merchants)
+        async let tagged: Api<Analysis> = engine.call("spending_analyze", AnalysisInput(from: w.from, to: w.to, groupBy: "tag"))
+        let (t, c, m, g) = await (trend, cats, merchants, tagged)
         guard case .ok(let t) = t else { return t.map { _ in Snapshot.empty } }
         guard case .ok(let c) = c else { return c.map { _ in Snapshot.empty } }
         guard case .ok(let m) = m else { return m.map { _ in Snapshot.empty } }
-        return .ok(Snapshot(period: period, window: w, trend: t, categories: c, merchants: m))
+        guard case .ok(let g) = g else { return g.map { _ in Snapshot.empty } }
+        return .ok(Snapshot(period: period, window: w, trend: t, categories: c, merchants: m, tags: g))
     }
 }
 
 extension Snapshot {
-    static let empty = Snapshot(period: .month, window: Period.month.window(), trend: .init(current: []), categories: .init(current: []), merchants: .init(current: []))
+    static let empty = Snapshot(period: .month, window: Period.month.window(), trend: .init(current: []), categories: .init(current: []), merchants: .init(current: []), tags: .init(current: []))
 }
 
 extension Analysis {

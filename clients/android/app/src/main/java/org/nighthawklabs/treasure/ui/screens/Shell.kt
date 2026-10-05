@@ -29,7 +29,7 @@ private enum class Tab(val label: String, val icon: ImageVector) {
 @Composable
 fun Shell(
     session: Session, user: AuthState.SignedIn, activity: FragmentActivity, lock: AppLock,
-    openSpend: (String) -> Unit, openOrganize: (DimensionKind) -> Unit,
+    openSpend: (String) -> Unit, openOrganize: (DimensionKind) -> Unit, openEvidence: () -> Unit,
 ) {
     val t = Treasure.tok
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -51,8 +51,8 @@ fun Shell(
             when (tab) {
                 Tab.Home -> HomeScreen(session, openSpend)
                 Tab.Spends -> SpendsScreen(session, openSpend)
-                Tab.Insights -> InsightsScreen(session)
-                Tab.More -> MoreScreen(session, user, activity, lock, openOrganize)
+                Tab.Insights -> InsightsScreen(session) { f -> session.spends.setFilter(f); tab = Tab.Spends }
+                Tab.More -> MoreScreen(session, user, activity, lock, openOrganize, openEvidence)
             }
         }
     }

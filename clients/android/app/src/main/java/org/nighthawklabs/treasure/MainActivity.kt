@@ -18,6 +18,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DevMode.configure(intent.getStringExtra("dev_engine"))
         enableEdgeToEdge()
         // Whole-app foreground/background (not per-activity), so rotating the phone never locks it.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {

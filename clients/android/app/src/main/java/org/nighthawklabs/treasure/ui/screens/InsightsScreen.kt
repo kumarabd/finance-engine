@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.nighthawklabs.treasure.Session
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.testTag
 import org.nighthawklabs.treasure.data.*
 import org.nighthawklabs.treasure.net.Api
 import org.nighthawklabs.treasure.net.problem
@@ -54,7 +56,7 @@ private fun axisLabel(key: String, group: String): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InsightsScreen(session: Session) {
+fun InsightsScreen(session: Session, openSpends: (SpendFilter) -> Unit) {
     val t = Treasure.tok
     val scope = rememberCoroutineScope()
     val still = reduceMotion()
@@ -104,8 +106,11 @@ fun InsightsScreen(session: Session) {
                             if (point == null) Delta.text(total.first, total.second, snap.period.comparedWith)?.let { Text(it, color = t.muted) }
                         }
                         TrendChart(snap, cur, selected, { selected = it }, key = loaded, still = still)
-                        BreakdownSection("Categories", Breakdown.top(snap.categories.current, cur), cur)
-                        BreakdownSection("Top merchants", Breakdown.top(snap.merchants.current, cur), cur)
+                        fun drill(d: Drill.Dimension): (BreakdownRow) -> Unit = { row -> Drill.filter(row, d, snap.window, cur)?.let(openSpends) }
+                        BreakdownSection("Categories", Breakdown.top(snap.categories.current, cur), cur, onSelect = drill(Drill.Dimension.Category))
+                        BreakdownSection("Top merchants", Breakdown.top(snap.merchants.current, cur), cur, onSelect = drill(Drill.Dimension.Merchant))
+                        BreakdownSection("Tags", Breakdown.top(snap.tags.current, cur), cur, onSelect = drill(Drill.Dimension.Tag),
+                            footnote = "A spend with several tags counts under each, so these add up to more than the total.")
                     }
                     snap != null -> EmptyView("No spending in this period", Modifier.height(240.dp))
                     problem != null -> ProblemView(problem!!, Modifier.height(320.dp)) { scope.launch { load() } }
@@ -195,7 +200,7 @@ private fun max(a: Long, b: Long) = if (a > b) a else b
 
 /** A ranked list, not a donut: bars on one baseline compare precisely, and every row carries its own name and amount. */
 @Composable
-private fun BreakdownSection(title: String, rows: List<BreakdownRow>, currency: String) {
+private fun BreakdownSection(title: String, rows: List<BreakdownRow>, currency: String, onSelect: (BreakdownRow) -> Unit, footnote: String? = null) {
     if (rows.isEmpty()) return
     val t = Treasure.tok
     Panel(Modifier.fillMaxWidth()) {
@@ -203,7 +208,8 @@ private fun BreakdownSection(title: String, rows: List<BreakdownRow>, currency: 
             Text(title, style = MaterialTheme.typography.titleMedium)
             rows.forEachIndexed { i, row ->
                 val share by animateFloatAsState(row.share.toFloat(), tween(300), label = "share")
-                Column(Modifier.semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.testTag("breakdown-${row.label}").fillMaxWidth().heightIn(min = 48.dp).clickable(onClickLabel = "Show these spends") { onSelect(row) }.semantics(mergeDescendants = true) {},
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row {
                         Text(row.label, maxLines = 1, modifier = Modifier.weight(1f))
                         Text(Money.format(row.minor, currency), style = Tabular)
@@ -214,6 +220,7 @@ private fun BreakdownSection(title: String, rows: List<BreakdownRow>, currency: 
                     }
                 }
             }
+            footnote?.let { Text(it, color = t.muted, style = MaterialTheme.typography.bodySmall) }
         }
     }
 }

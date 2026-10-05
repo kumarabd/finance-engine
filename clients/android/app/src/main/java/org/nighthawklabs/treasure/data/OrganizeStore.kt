@@ -16,6 +16,7 @@ data class OrganizeState(
     val problem: String? = null,
     /** A delete the engine refused because spends still use the record: the user must choose a replacement. */
     val needsReplacement: Dimension? = null,
+    val showDeleted: Boolean = false,
 )
 
 class OrganizeStore(
@@ -27,11 +28,12 @@ class OrganizeStore(
     val state: StateFlow<OrganizeState> = _state.asStateFlow()
     private fun key() = UUID.randomUUID().toString()
 
-    suspend fun load() {
+    suspend fun load(showDeleted: Boolean = _state.value.showDeleted) {
+        _state.update { it.copy(showDeleted = showDeleted) }
         val all = mutableListOf<Dimension>()
         var offset = 0
         while (true) {
-            val r = engine.call<PageInput, Page<Dimension>>("${kind.plural}_list", PageInput(200, offset))
+            val r = engine.call<PageInput, Page<Dimension>>("${kind.plural}_list", PageInput(200, offset, if (showDeleted) "deleted" else null))
             if (r !is Api.Ok) { _state.update { it.copy(problem = r.problem, loading = false) }; return }
             all += r.value.items
             offset = r.value.nextOffset ?: break
@@ -45,6 +47,18 @@ class OrganizeStore(
     suspend fun rename(d: Dimension, name: String) = finish(
         engine.call<UpdateDimensionInput, Dimension>("${kind.plural}_update", UpdateDimensionInput(key(), d.id, d.version ?: 0, name, d.aliases)).problem,
     )
+
+    /** Replace a merchant's alternative names (what the importer and search also match on). */
+    suspend fun setAliases(d: Dimension, aliases: List<String>) = finish(
+        engine.call<UpdateDimensionInput, Dimension>("${kind.plural}_update", UpdateDimensionInput(key(), d.id, d.version ?: 0, d.name, aliases)).problem,
+    )
+
+    /** Bring back a deleted record. The engine refuses if its name (or an alias) has since been taken. */
+    suspend fun restore(d: Dimension) = finish(
+        engine.call<LifecycleInput, Dimension>("${kind.plural}_restore", LifecycleInput(key(), d.id, d.version ?: 0)).problem,
+    )
+
+    suspend fun history(d: Dimension): Api<Page<Change>> = engine.call("history_list", HistoryInput(kind.singular, d.id))
 
     suspend fun merge(source: Dimension, target: Dimension) = finish(
         engine.call<MergeDimensionInput, MergeResult>("${kind.plural}_merge", MergeDimensionInput(key(), source.id, source.version ?: 0, target.id, target.version ?: 0)).problem,

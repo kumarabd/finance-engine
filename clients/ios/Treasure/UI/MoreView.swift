@@ -34,6 +34,9 @@ struct MoreView: View {
                         NavigationLink(k.title) { OrganizeView(kind: k) }.frame(minHeight: 44).listRowBackground(Tok.surface)
                     }
                 }
+                Section("Documents") {
+                    NavigationLink("Receipts & documents") { EvidenceView() }.frame(minHeight: 44).listRowBackground(Tok.surface)
+                }
                 Section("Data") {
                     Group {
                         if let exportURL {

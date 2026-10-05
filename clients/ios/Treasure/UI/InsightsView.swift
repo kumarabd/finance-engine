@@ -23,6 +23,7 @@ struct InsightsView: View {
     @State private var problem: String?
     @State private var selected: String?
     @State private var drawn = false
+    @Environment(Router.self) private var router
 
     private var shownCurrency: String? { currency ?? snapshot?.currencies.first }
 
@@ -40,8 +41,10 @@ struct InsightsView: View {
                         }
                         header(snap, cur)
                         TrendChart(snap: snap, currency: cur, selected: $selected, drawn: drawn)
-                        BreakdownSection(title: "Categories", rows: Breakdown.top(snap.categories.current, currency: cur), currency: cur)
-                        BreakdownSection(title: "Top merchants", rows: Breakdown.top(snap.merchants.current, currency: cur), currency: cur)
+                        BreakdownSection(title: "Categories", rows: Breakdown.top(snap.categories.current, currency: cur), currency: cur) { drill($0, .category, snap, cur) }
+                        BreakdownSection(title: "Top merchants", rows: Breakdown.top(snap.merchants.current, currency: cur), currency: cur) { drill($0, .merchant, snap, cur) }
+                        BreakdownSection(title: "Tags", rows: Breakdown.top(snap.tags.current, currency: cur), currency: cur,
+                                         footnote: "A spend with several tags counts under each, so these add up to more than the total.") { drill($0, .tag, snap, cur) }
                     } else if snapshot != nil {
                         ContentUnavailableView("No spending in this period", systemImage: "chart.bar")
                     } else if let problem {
@@ -75,6 +78,13 @@ struct InsightsView: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// Show the spends behind a row on the Spends tab.
+    private func drill(_ row: BreakdownRow, _ dimension: Drill.Dimension, _ snap: Snapshot, _ cur: String) {
+        guard let f = Drill.filter(row, dimension, window: snap.window, currency: cur) else { return }
+        spends.filter = f
+        router.tab = .spends
     }
 
     private func load() async {
@@ -168,12 +178,15 @@ struct BreakdownSection: View {
     let title: String
     let rows: [BreakdownRow]
     let currency: String
+    var footnote: String?
+    var onSelect: ((BreakdownRow) -> Void)?
 
     var body: some View {
         if !rows.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 Text(title).font(.headline)
                 ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
+                    Button { onSelect?(row) } label: {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text(row.label).lineLimit(1)
@@ -188,8 +201,13 @@ struct BreakdownSection: View {
                         }
                         .frame(height: 6)
                     }
+                    .contentShape(Rectangle()).frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
+                    .accessibilityHint("Shows these spends")
                 }
+                if let footnote { Text(footnote).font(.caption).foregroundStyle(Tok.muted) }
             }
             .padding(16)
             .background(Tok.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))

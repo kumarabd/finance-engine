@@ -277,3 +277,74 @@ final class FilterChipTests: XCTestCase {
         XCTAssertNil(Money.parseMinor("abc", currency: "USD"))
     }
 }
+
+final class SplitTests: XCTestCase {
+    private func row(_ c: String?, _ m: Int64) -> SplitRow { SplitRow(categoryId: c, amountMinor: m) }
+
+    func testAValidSplitAddsUpExactly() {
+        XCTAssertNil(Splits.problem(total: 1000, rows: [row("a", 600), row("b", 400)], currency: "USD"))
+        XCTAssertEqual(Splits.allocations([row("a", 600), row(nil, 400)]).map(\.amountMinor), [600, 400])
+    }
+
+    func testTheMessageSaysHowMuchIsLeftOrOver() {
+        XCTAssertEqual(Splits.problem(total: 1000, rows: [row("a", 600), row("b", 300)], currency: "USD"), "$1.00 left to assign.")
+        XCTAssertEqual(Splits.problem(total: 1000, rows: [row("a", 600), row("b", 500)], currency: "USD"), "Over by $1.00.")
+    }
+
+    func testEveryShareNeedsAnAmountAndACategoryIsUsedOnce() {
+        XCTAssertEqual(Splits.problem(total: 1000, rows: [row("a", 1000), row("b", 0)], currency: "USD"), "Each split needs an amount.")
+        XCTAssertEqual(Splits.problem(total: 1000, rows: [row("a", 500), row("a", 500)], currency: "USD"), "Each category can only be used once.")
+        XCTAssertEqual(Splits.problem(total: 1000, rows: [row(nil, 500), row(nil, 500)], currency: "USD"), "Each category can only be used once.", "two uncategorized lines are one category too")
+    }
+
+    func testASingleLineIsNotASplit() { XCTAssertNil(Splits.problem(total: 1000, rows: [row("a", 1)], currency: "USD")); XCTAssertTrue(Splits.rows(from: [Allocation(categoryId: "a", amountMinor: 5)]).isEmpty) }
+
+    func testStartingASplitOpensBalancedWithTheCurrentCategoryOnTheLargerHalf() {
+        let rows = Splits.start(categoryId: "c1", total: 1000)
+        XCTAssertEqual(rows.map(\.amountMinor), [500, 500]); XCTAssertEqual(rows[0].categoryId, "c1"); XCTAssertNil(rows[1].categoryId)
+        XCTAssertEqual(Splits.start(categoryId: nil, total: 1001).map(\.amountMinor), [501, 500], "an odd amount never loses a cent")
+        XCTAssertEqual(Splits.remaining(total: 1001, rows: Splits.start(categoryId: nil, total: 1001)), 0)
+    }
+
+    func testAddingALineTakesWhatIsLeftAndNeverGoesNegative() {
+        XCTAssertEqual(Splits.adding(to: [row("a", 600)], total: 1000).last?.amountMinor, 400)
+        XCTAssertEqual(Splits.adding(to: [row("a", 1200)], total: 1000).last?.amountMinor, 0)
+    }
+
+    func testAmountsAreEditableAsPlainTextInTheCurrencysUnits() {
+        XCTAssertEqual(Money.plain(1250, currency: "USD"), "12.50"); XCTAssertEqual(Money.plain(1500, currency: "JPY"), "1500")
+        XCTAssertEqual(Money.plain(123_456_789, currency: "USD"), "1234567.89", "no grouping separators in an editable field")
+        XCTAssertEqual(Money.parseMinor(Money.plain(7005, currency: "USD"), currency: "USD"), 7005)
+    }
+
+    func testTheFilterCanAskForRefundsOfOneExpense() throws {
+        var f = SpendFilter(); f.originalSpendId = "exp-1"
+        let j = try JSONSerialization.jsonObject(with: JSONEncoder().encode(f.input())) as! [String: Any]
+        XCTAssertEqual(j["original_spend_id"] as? String, "exp-1")
+    }
+
+    func testEvidenceIsSentFlatLikeTheEngineExpects() throws {
+        func json<T: Encodable>(_ v: T) throws -> [String: Any] { try JSONSerialization.jsonObject(with: JSONEncoder().encode(v)) as! [String: Any] }
+        let c = try json(NewEvidenceInput(idempotencyKey: "k", evidence: EvidenceInput(title: "Receipt", sourceRef: "doc:1", mediaType: nil, checksum: nil, notes: "n")))
+        XCTAssertEqual(c["idempotency_key"] as? String, "k"); XCTAssertEqual(c["title"] as? String, "Receipt")
+        XCTAssertEqual(c["source_ref"] as? String, "doc:1"); XCTAssertEqual(c["notes"] as? String, "n"); XCTAssertNil(c["media_type"])
+        let u = try json(UpdateEvidenceInput(idempotencyKey: "k", id: "e1", expectedVersion: 3, evidence: EvidenceInput(title: "T", sourceRef: "r", mediaType: nil, checksum: nil, notes: nil)))
+        XCTAssertEqual(u["expected_version"] as? Int, 3); XCTAssertEqual(u["id"] as? String, "e1"); XCTAssertEqual(u["title"] as? String, "T")
+        let l = try json(EvidenceLinkInput(idempotencyKey: "k", id: "s1", expectedVersion: 2, evidenceId: "e1"))
+        XCTAssertEqual(l["evidence_id"] as? String, "e1"); XCTAssertEqual(l["id"] as? String, "s1")
+        XCTAssertEqual(try json(DeleteEvidenceInput(idempotencyKey: "k", id: "e", expectedVersion: 1, detach: true))["detach"] as? Bool, true)
+    }
+
+    func testTappingABreakdownRowNarrowsSpendsToThatGroupAndWindow() {
+        let w = Period.Window(from: "2026-10-01", to: "2026-10-05", compareFrom: "2026-09-01", compareTo: "2026-09-05")
+        func row(_ k: String) -> BreakdownRow { BreakdownRow(key: k, label: k, minor: 1, share: 1) }
+        let c = Drill.filter(row("cat-1"), .category, window: w, currency: "USD")
+        XCTAssertEqual(c?.categoryId, "cat-1"); XCTAssertEqual(c?.from, "2026-10-01"); XCTAssertEqual(c?.to, "2026-10-05"); XCTAssertEqual(c?.currency, "USD")
+        XCTAssertEqual(Drill.filter(row("uncategorized"), .category, window: w, currency: "USD")?.uncategorized, true)
+        XCTAssertEqual(Drill.filter(row("m1"), .merchant, window: w, currency: "USD")?.merchantId, "m1")
+        XCTAssertEqual(Drill.filter(row("t1"), .tag, window: w, currency: "USD")?.tagIds, ["t1"])
+        XCTAssertNil(Drill.filter(row("other"), .category, window: w, currency: "USD"), "folded rows have no single filter")
+        XCTAssertNil(Drill.filter(row("unknown"), .merchant, window: w, currency: "USD"))
+        XCTAssertNil(Drill.filter(row("untagged"), .tag, window: w, currency: "USD"))
+    }
+}

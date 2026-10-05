@@ -118,7 +118,7 @@ data class BulkLifecycleInput(
     val records: List<Versioned>,
 )
 
-@Serializable data class PageInput(val limit: Int, val offset: Int)
+@Serializable data class PageInput(val limit: Int, val offset: Int, val state: String? = null)
 @Serializable data class GetInput(val id: String)
 
 @Serializable
@@ -143,6 +143,7 @@ data class Dimension(
     val name: String,
     val aliases: List<String>? = null,
     val version: Long? = null,
+    @SerialName("deleted_at") val deletedAt: String? = null,
 )
 
 // Write operations. `idempotency_key` is reused only to retry the exact same operation.

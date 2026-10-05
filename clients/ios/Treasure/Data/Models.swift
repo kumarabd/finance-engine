@@ -174,11 +174,14 @@ struct Dimension: Codable, Identifiable, Equatable, Hashable {
     var name: String
     var aliases: [String]?
     var version: Int64?
+    var deletedAt: String?
+    enum CodingKeys: String, CodingKey { case id, name, aliases, version, deletedAt = "deleted_at" }
 }
 
 struct PageInput: Encodable {
     var limit = 200
     var offset = 0
+    var state: String?   // active (default) | deleted | all
 }
 
 struct GetInput: Encodable { var id: String }

@@ -15,6 +15,7 @@ struct SpendFilter: Equatable {
     var minAmountMinor: Int64?
     var maxAmountMinor: Int64?
     var evidenceId: String?
+    var originalSpendId: String?   // refunds of one expense (not set from the filter sheet)
     var state = "active"        // active | deleted | all
     var sort = "date_desc"
 
@@ -39,7 +40,7 @@ struct SpendFilter: Equatable {
         return SearchInput(
             limit: limit, offset: offset, from: from, to: to, currency: currency, search: q.isEmpty ? nil : q, kind: kind,
             merchantId: merchantId, categoryId: uncategorized ? nil : categoryId, uncategorized: uncategorized ? true : nil,
-            tagIds: tagIds.isEmpty ? nil : tagIds, accountRef: account.isEmpty ? nil : account, evidenceId: evidenceId,
+            tagIds: tagIds.isEmpty ? nil : tagIds, accountRef: account.isEmpty ? nil : account, evidenceId: evidenceId, originalSpendId: originalSpendId,
             minAmountMinor: minAmountMinor, maxAmountMinor: maxAmountMinor,
             state: state == "active" ? nil : state, sort: sort == "date_desc" ? nil : sort)
     }

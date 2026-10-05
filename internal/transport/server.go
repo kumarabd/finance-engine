@@ -85,17 +85,13 @@ func New(service *engine.Service, legacy http.Handler, devUser string, trustedOr
 		r.Body = http.MaxBytesReader(w, r.Body, 4<<20)
 		api.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, engine.Principal{Owner: owner, Actor: actor})))
 	})
-	originGuard := http.NewCrossOriginProtection()
-	for _, origin := range trustedOrigins {
-		if origin != "" {
-			if err := originGuard.AddTrustedOrigin(origin); err != nil {
-				return nil, err
-			}
-		}
+	originGuard, err := newOriginGuard(trustedOrigins)
+	if err != nil {
+		return nil, err
 	}
 	root := http.NewServeMux()
-	root.Handle("/mcp", originGuard.Handler(protected))
-	root.Handle("/api/v1/operations/", originGuard.Handler(protected))
+	root.Handle("/mcp", originGuard(protected))
+	root.Handle("/api/v1/operations/", originGuard(protected))
 	root.Handle("/api/v1/capabilities", protected)
 	root.Handle("/api/v1/openapi.json", protected)
 	root.Handle("/", legacy)

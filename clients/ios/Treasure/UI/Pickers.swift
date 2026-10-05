@@ -48,11 +48,12 @@ struct MultiPicker: View {
             }
             .overlay { if items.isEmpty && !canCreate { ContentUnavailableView(emptyHint, systemImage: "tag") } }
             .scrollContentBackground(.hidden).background(Tok.background)
+            .contentMargins(.top, 0, for: .scrollContent)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search or create")
             .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
             .toolbar { Button("Done") { dismiss() }.fontWeight(.semibold) }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents(items.count <= 3 ? [.medium, .large] : [.large])
     }
 }
 
@@ -98,11 +99,12 @@ struct SinglePicker: View {
                 }
             }
             .scrollContentBackground(.hidden).background(Tok.background)
+            .contentMargins(.top, 0, for: .scrollContent)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
             .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
             .toolbar { Button("Cancel") { dismiss() } }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents(items.count + (noneLabel == nil ? 0 : 1) <= 3 ? [.medium, .large] : [.large])
     }
 
     private func row(_ name: String, selected: Bool) -> some View {

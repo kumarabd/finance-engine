@@ -85,6 +85,24 @@ struct BreakdownRow: Identifiable, Equatable {
     var id: String { key }
 }
 
+/// What tapping a breakdown row shows: the spends behind it, for the same window and currency.
+enum Drill {
+    enum Dimension { case category, merchant, tag }
+
+    /// Nil for rows the list can't be narrowed to: the folded "Other", and merchants/tags that are simply absent ("unknown", "untagged").
+    static func filter(_ row: BreakdownRow, _ dimension: Dimension, window: Period.Window, currency: String) -> SpendFilter? {
+        var f = SpendFilter(); f.from = window.from; f.to = window.to; f.currency = currency
+        switch (dimension, row.key) {
+        case (_, "other"), (.merchant, "unknown"), (.tag, "untagged"): return nil
+        case (.category, "uncategorized"): f.uncategorized = true
+        case (.category, let id): f.categoryId = id
+        case (.merchant, let id): f.merchantId = id
+        case (.tag, let id): f.tagIds = [id]
+        }
+        return f
+    }
+}
+
 enum Breakdown {
     /// Largest groups first, anything beyond `limit` folded into "Other". Groups with no net spend are left out.
     static func top(_ buckets: [Bucket], currency: String, limit: Int = 5) -> [BreakdownRow] {

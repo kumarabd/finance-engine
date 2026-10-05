@@ -45,6 +45,11 @@ struct WelcomeView: View {
 }
 
 /// Signed-in shell. Owns the per-user models so they are rebuilt (and caches dropped) on sign-out.
+enum AppTab: Hashable { case home, spends, insights, more }
+
+/// Which tab is showing, so one screen can send the user to another (an Insights row opens the matching Spends).
+@Observable final class Router { var tab: AppTab = .home }
+
 struct Tabs: View {
     let userId: String
     @Environment(AuthService.self) private var auth
@@ -54,17 +59,19 @@ struct Tabs: View {
     @State private var composer = Composer()
     @State private var importer = Importer()
     @State private var reach = Reachability()
+    @State private var router = Router()
     @Environment(\.scenePhase) private var phase
 
     var body: some View {
         Group {
             if let engine, let directory, let spends {
-                TabView {
-                    HomeView().tabItem { Label("Home", systemImage: "house") }
-                    SpendsView().tabItem { Label("Spends", systemImage: "list.bullet") }
-                    InsightsView().tabItem { Label("Insights", systemImage: "chart.bar.xaxis") }
-                    MoreView().tabItem { Label("More", systemImage: "ellipsis") }
+                TabView(selection: $router.tab) {
+                    HomeView().tabItem { Label("Home", systemImage: "house") }.tag(AppTab.home)
+                    SpendsView().tabItem { Label("Spends", systemImage: "list.bullet") }.tag(AppTab.spends)
+                    InsightsView().tabItem { Label("Insights", systemImage: "chart.bar.xaxis") }.tag(AppTab.insights)
+                    MoreView().tabItem { Label("More", systemImage: "ellipsis") }.tag(AppTab.more)
                 }
+                .environment(router)
                 .environment(engine).environment(directory).environment(spends).environment(composer).environment(importer)
                 .modifier(ImportHost(importer: importer, engine: engine, directory: directory, spends: spends))
                 .sheet(item: $composer.target) { SpendEditor(target: $0).environment(spends).environment(directory) }

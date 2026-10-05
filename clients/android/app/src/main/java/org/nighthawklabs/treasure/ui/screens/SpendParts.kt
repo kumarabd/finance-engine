@@ -27,10 +27,13 @@ import org.nighthawklabs.treasure.ui.theme.Treasure
 fun SpendRow(session: Session, spend: Spend, modifier: Modifier = Modifier) {
     val merchants by session.directory.merchants.collectAsState()
     val categories by session.directory.categories.collectAsState()
+    val tags by session.directory.tags.collectAsState()
     val t = Treasure.tok
     val title = merchants[spend.merchantId]?.name ?: spend.description?.takeIf { it.isNotEmpty() } ?: spend.kind.replaceFirstChar { it.uppercase() }
     val cats = spend.allocations.orEmpty().mapNotNull { categories[it.categoryId]?.name }
-    val subtitle = cats.joinToString(", ").ifEmpty { if (spend.kind == "expense") "Uncategorized" else spend.kind.replaceFirstChar { it.uppercase() } }
+    val base = cats.joinToString(", ").ifEmpty { if (spend.kind == "expense") "Uncategorized" else spend.kind.replaceFirstChar { it.uppercase() } }
+    val tagNames = spend.tagIds.orEmpty().mapNotNull { tags[it]?.name }
+    val subtitle = if (tagNames.isEmpty()) base else base + " · " + tagNames.joinToString(" ") { "#$it" }
     val amount = Money.format(spend.amountMinor, spend.currency)
     Row(modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {

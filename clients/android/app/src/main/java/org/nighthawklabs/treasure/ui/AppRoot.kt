@@ -42,7 +42,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun AppRoot(activity: FragmentActivity, lock: AppLock) {
-    val auth by Auth.state.collectAsState()
+    val realAuth by Auth.state.collectAsState()
+    val auth = if (org.nighthawklabs.treasure.DevMode.engineUrl != null) AuthState.SignedIn(org.nighthawklabs.treasure.DevMode.USER, "dev@local") else realAuth
     val locked by lock.locked.collectAsState()
     val t = Treasure.tok
     val still = reduceMotion()
@@ -128,11 +129,13 @@ private fun Nav(session: Session, user: AuthState.SignedIn, activity: FragmentAc
         composable("tabs") {
             Shell(session, user, activity, lock,
                 openSpend = { nav.navigate("spend/${android.net.Uri.encode(it)}") },
-                openOrganize = { nav.navigate("organize/${it.name}") })
+                openOrganize = { nav.navigate("organize/${it.name}") },
+                openEvidence = { nav.navigate("evidence") })
         }
         composable("spend/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) { entry ->
             DetailScreen(session, entry.arguments?.getString("id").orEmpty(), onBack = { nav.popBackStack() })
         }
+        composable("evidence") { EvidenceScreen(session, onBack = { nav.popBackStack() }) }
         composable("organize/{kind}", arguments = listOf(navArgument("kind") { type = NavType.StringType })) { entry ->
             val kind = DimensionKind.valueOf(entry.arguments?.getString("kind") ?: "Category")
             OrganizeScreen(session, kind, onBack = { nav.popBackStack() })

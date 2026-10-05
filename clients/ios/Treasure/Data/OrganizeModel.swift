@@ -42,6 +42,7 @@ final class OrganizeModel {
     var problem: String?
     /// A delete the engine refused because spends still use the record: the user must choose a replacement.
     var needsReplacement: Dimension?
+    var showDeleted = false { didSet { Task { await load() } } }
     private let engine: Engine
     private let afterChange: () async -> Void
 
@@ -53,7 +54,7 @@ final class OrganizeModel {
         defer { loading = false }
         var all: [Dimension] = [], offset = 0
         while true {
-            let r: Api<Page<Dimension>> = await engine.call("\(kind.plural)_list", PageInput(offset: offset))
+            let r: Api<Page<Dimension>> = await engine.call("\(kind.plural)_list", PageInput(offset: offset, state: showDeleted ? "deleted" : nil))
             guard case .ok(let page) = r else { problem = r.problem; return }
             all += page.items
             guard let next = page.nextOffset else { break }
@@ -65,6 +66,23 @@ final class OrganizeModel {
     func create(_ name: String) async {
         let r: Api<Dimension> = await engine.call("\(kind.plural)_create", CreateDimensionInput(idempotencyKey: UUID().uuidString, name: name))
         await finish(r.problem, reassigned: false)
+    }
+
+    /// Replace a merchant's alternative names (what the importer and search also match on).
+    func setAliases(_ d: Dimension, to aliases: [String]) async {
+        let r: Api<Dimension> = await engine.call("\(kind.plural)_update",
+            UpdateDimensionInput(idempotencyKey: UUID().uuidString, id: d.id, expectedVersion: d.version ?? 0, name: d.name, aliases: aliases))
+        await finish(r.problem, reassigned: false)
+    }
+
+    /// Bring back a deleted record. The engine refuses if its name (or an alias) has since been taken.
+    func restore(_ d: Dimension) async {
+        let r: Api<Dimension> = await engine.call("\(kind.plural)_restore", LifecycleInput(idempotencyKey: UUID().uuidString, id: d.id, expectedVersion: d.version ?? 0))
+        await finish(r.problem, reassigned: false)
+    }
+
+    func history(_ d: Dimension) async -> Api<Page<Change>> {
+        await engine.call("history_list", HistoryInput(entityType: kind.rawValue, id: d.id))
     }
 
     func rename(_ d: Dimension, to name: String) async {

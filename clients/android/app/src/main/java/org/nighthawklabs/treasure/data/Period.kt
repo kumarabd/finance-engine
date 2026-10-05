@@ -60,6 +60,25 @@ object Trend {
 
 data class BreakdownRow(val key: String, val label: String, val minor: Long, val share: Double)
 
+/** What tapping a breakdown row shows: the spends behind it, for the same window and currency. */
+object Drill {
+    enum class Dimension { Category, Merchant, Tag }
+
+    /** Null for rows the list can't be narrowed to: the folded "Other", and merchants/tags that are simply absent. */
+    fun filter(row: BreakdownRow, dimension: Dimension, window: Period.Window, currency: String): SpendFilter? {
+        val base = SpendFilter(from = window.from, to = window.to, currency = currency)
+        return when {
+            row.key == "other" -> null
+            dimension == Dimension.Merchant && row.key == "unknown" -> null
+            dimension == Dimension.Tag && row.key == "untagged" -> null
+            dimension == Dimension.Category && row.key == "uncategorized" -> base.copy(uncategorized = true)
+            dimension == Dimension.Category -> base.copy(categoryId = row.key)
+            dimension == Dimension.Merchant -> base.copy(merchantId = row.key)
+            else -> base.copy(tagIds = listOf(row.key))
+        }
+    }
+}
+
 object Breakdown {
     /** Largest groups first, anything beyond [limit] folded into "Other". Groups with no net spend are left out. */
     fun top(buckets: List<Bucket>, currency: String, limit: Int = 5): List<BreakdownRow> {

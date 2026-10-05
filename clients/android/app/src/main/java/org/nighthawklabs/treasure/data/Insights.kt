@@ -42,6 +42,7 @@ data class Snapshot(
     val trend: Analysis,
     val categories: Analysis,
     val merchants: Analysis,
+    val tags: Analysis,
 ) {
     /** Currencies present in the window, biggest spend first. They are never combined. */
     val currencies: List<String>
@@ -64,10 +65,12 @@ class Insights(private val engine: EngineApi) {
         val trend = async { engine.call<AnalysisInput, Analysis>("spending_analyze", AnalysisInput(w.from, w.to, period.trendGroup, w.compareFrom, w.compareTo)) }
         val cats = async { engine.call<AnalysisInput, Analysis>("spending_analyze", AnalysisInput(w.from, w.to, "category")) }
         val merchants = async { engine.call<AnalysisInput, Analysis>("spending_analyze", AnalysisInput(w.from, w.to, "merchant")) }
-        val (t, c, m) = Triple(trend.await(), cats.await(), merchants.await())
+        val tags = async { engine.call<AnalysisInput, Analysis>("spending_analyze", AnalysisInput(w.from, w.to, "tag")) }
+        val (t, c, m, g) = listOf(trend.await(), cats.await(), merchants.await(), tags.await())
         if (t !is Api.Ok) return@coroutineScope t.failure()!!
         if (c !is Api.Ok) return@coroutineScope c.failure()!!
         if (m !is Api.Ok) return@coroutineScope m.failure()!!
-        Api.Ok(Snapshot(period, w, t.value, c.value, m.value))
+        if (g !is Api.Ok) return@coroutineScope g.failure()!!
+        Api.Ok(Snapshot(period, w, t.value, c.value, m.value, g.value))
     }
 }

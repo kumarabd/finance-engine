@@ -22,7 +22,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=build /out/finance-api /finance-api
 
-USER nonroot:nonroot
+USER 65532:65532
 
 # Listens on all interfaces inside the container; in a cluster only the identity router may reach it (NetworkPolicy),
 # because it trusts the router's X-Nighthawk-Verified-User header. Never set DEV_VERIFIED_USER in an image or chart.

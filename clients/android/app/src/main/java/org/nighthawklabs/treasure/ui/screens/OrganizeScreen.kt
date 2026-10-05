@@ -17,6 +17,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.nighthawklabs.treasure.Session
+import androidx.compose.ui.platform.testTag
+import org.nighthawklabs.treasure.data.Change
+import org.nighthawklabs.treasure.net.Api
+import org.nighthawklabs.treasure.net.problem
 import org.nighthawklabs.treasure.data.Dimension
 import org.nighthawklabs.treasure.data.DimensionKind
 import org.nighthawklabs.treasure.data.OrganizeStore
@@ -32,6 +36,8 @@ fun OrganizeScreen(session: Session, kind: DimensionKind, onBack: () -> Unit) {
     val state by store.state.collectAsState()
     var naming by remember { mutableStateOf<NameTarget?>(null) }
     var merging by remember { mutableStateOf<Dimension?>(null) }
+    var aliasing by remember { mutableStateOf<Dimension?>(null) }
+    var viewing by remember { mutableStateOf<Dimension?>(null) }
     LaunchedEffect(kind) { store.load() }
 
     Scaffold(
@@ -46,9 +52,16 @@ fun OrganizeScreen(session: Session, kind: DimensionKind, onBack: () -> Unit) {
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize()) {
+                item {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(16.dp)) {
+                        listOf(false to "Active", true to "Deleted").forEachIndexed { i, (deleted, label) ->
+                            SegmentedButton(selected = state.showDeleted == deleted, onClick = { scope.launch { store.load(deleted) } }, shape = SegmentedButtonDefaults.itemShape(i, 2), label = { Text(label) })
+                        }
+                    }
+                }
                 state.problem?.let { p -> item { Text(p, color = t.critical, modifier = Modifier.padding(16.dp)) } }
                 items(state.items, key = { it.id }) { d ->
-                    SwipeToDelete(onDelete = { scope.launch { store.delete(d) } }, modifier = Modifier.animateItem()) {
+                    SwipeToDelete(onDelete = { scope.launch { if (state.showDeleted) store.restore(d) else store.delete(d) } }, modifier = Modifier.animateItem(), restore = state.showDeleted) {
                         var menu by remember { mutableStateOf(false) }
                         Row(Modifier.fillMaxWidth().background(t.surface).heightIn(min = 56.dp).padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
@@ -58,9 +71,14 @@ fun OrganizeScreen(session: Session, kind: DimensionKind, onBack: () -> Unit) {
                             Box {
                                 IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "Options for ${d.name}") }
                                 DropdownMenu(menu, { menu = false }) {
-                                    DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; naming = NameTarget(d) })
-                                    DropdownMenuItem(text = { Text("Merge into…") }, onClick = { menu = false; merging = d })
-                                    DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; scope.launch { store.delete(d) } })
+                                    if (state.showDeleted) DropdownMenuItem(text = { Text("Restore") }, onClick = { menu = false; scope.launch { store.restore(d) } })
+                                    else {
+                                        DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; naming = NameTarget(d) })
+                                        if (kind == DimensionKind.Merchant) DropdownMenuItem(text = { Text("Edit aliases") }, onClick = { menu = false; aliasing = d })
+                                        DropdownMenuItem(text = { Text("Merge into…") }, onClick = { menu = false; merging = d })
+                                        DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; scope.launch { store.delete(d) } })
+                                    }
+                                    DropdownMenuItem(text = { Text("History") }, onClick = { menu = false; viewing = d })
                                 }
                             }
                         }
@@ -68,7 +86,7 @@ fun OrganizeScreen(session: Session, kind: DimensionKind, onBack: () -> Unit) {
                 }
             }
             if (state.loading) CircularProgressIndicator(Modifier.align(Alignment.Center))
-            else if (state.items.isEmpty() && state.problem == null) EmptyView("No ${kind.plural} yet")
+            else if (state.items.isEmpty() && state.problem == null) EmptyView(if (state.showDeleted) "Nothing deleted" else "No ${kind.plural} yet")
         }
     }
 
@@ -87,6 +105,17 @@ fun OrganizeScreen(session: Session, kind: DimensionKind, onBack: () -> Unit) {
             dismissButton = { TextButton(onClick = { naming = null }) { Text("Cancel") } },
         )
     }
+    aliasing?.let { d ->
+        var text by remember(d) { mutableStateOf(d.aliases.orEmpty().joinToString(", ")) }
+        AlertDialog(
+            onDismissRequest = { aliasing = null }, title = { Text("Aliases") },
+            text = { Column { Text("Other names this merchant appears under, such as “AMZN MKTP”.", color = t.muted, style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(text, { text = it }, label = { Text("Comma-separated") }, modifier = Modifier.testTag("alias-field")) } },
+            confirmButton = { TextButton(onClick = { aliasing = null; scope.launch { store.setAliases(d, text.split(",").map { it.trim() }.filter { it.isNotEmpty() }) } }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { aliasing = null }) { Text("Cancel") } },
+        )
+    }
+    viewing?.let { d -> DimensionHistory(store, d) { viewing = null } }
     merging?.let { src ->
         TargetPicker("Merge “${src.name}” into", state.items.filter { it.id != src.id }, onDismiss = { merging = null }) { target -> merging = null; scope.launch { store.merge(src, target) } }
     }
@@ -108,5 +137,34 @@ private fun TargetPicker(title: String, candidates: List<Dimension>, onDismiss: 
         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         if (candidates.isEmpty()) Text("Nothing to move them to", color = t.muted, modifier = Modifier.padding(20.dp))
         LazyColumn { items(candidates, key = { it.id }) { c -> TextButton(onClick = { onPick(c) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(c.name, modifier = Modifier.fillMaxWidth()) } } }
+    }
+}
+
+/** What changed on a category, tag or merchant, newest first. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DimensionHistory(store: OrganizeStore, record: Dimension, onDismiss: () -> Unit) {
+    val t = Treasure.tok
+    var changes by remember { mutableStateOf<List<Change>?>(null) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(record.id) {
+        when (val r = store.history(record)) {
+            is Api.Ok -> changes = r.value.items
+            else -> { problem = r.problem; changes = emptyList() }
+        }
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = t.background) {
+        Text(record.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+        problem?.let { Text(it, color = t.muted, modifier = Modifier.padding(20.dp)) }
+        if (changes == null) CircularProgressIndicator(Modifier.padding(20.dp))
+        else if (changes.orEmpty().isEmpty() && problem == null) Text("No history", color = t.muted, modifier = Modifier.padding(20.dp))
+        LazyColumn(Modifier.heightIn(max = 420.dp)) {
+            items(changes.orEmpty(), key = { it.id }) { c ->
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(c.operation.replace('_', ' ').replaceFirstChar { it.uppercase() }, Modifier.weight(1f))
+                    Text(c.occurredAt.take(16).replace('T', ' '), color = t.muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
     }
 }

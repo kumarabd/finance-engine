@@ -35,9 +35,9 @@ class Session(context: Context, val userId: String) {
     private val durable = DiskCache(File(context.filesDir, name))
 
     val engine = Engine(
-        FinanceApi(BuildConfig.ROUTER_BASE_URL.trimEnd('/') + "/finance/api/v1"), userId,
-        currentUser = { (Auth.state.value as? org.nighthawklabs.treasure.auth.AuthState.SignedIn)?.userId },
-    ) { skipCache -> Auth.token(skipCache) }
+        FinanceApi((DevMode.engineUrl ?: (BuildConfig.ROUTER_BASE_URL.trimEnd('/') + "/finance")) + "/api/v1"), userId,
+        currentUser = { if (DevMode.engineUrl != null) DevMode.USER else (Auth.state.value as? org.nighthawklabs.treasure.auth.AuthState.SignedIn)?.userId },
+    ) { skipCache -> if (DevMode.engineUrl != null) "dev" else Auth.token(skipCache) }
     val directory = Directory(engine, cache)
     val spends = SpendsStore(engine, cache, Outbox(durable), resolveMerchant = { directory.resolveMerchant(it) })
     val insights = Insights(engine)

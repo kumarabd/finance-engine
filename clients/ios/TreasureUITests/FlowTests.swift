@@ -111,7 +111,8 @@ final class FlowTests: XCTestCase {
         menuItem("Select")
         app.staticTexts["Blue Bottle"].firstMatch.tap()
         app.buttons["Restore"].tap()
-        XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 10), "restoring empties the Trash list")
+        // The restored spend leaves Trash (other deleted spends from earlier runs may still be there).
+        XCTAssertTrue(app.staticTexts["Blue Bottle"].firstMatch.waitForNonExistence(timeout: 10), "restoring takes it out of the Trash list")
         menuItem("Back to spends")
         XCTAssertTrue(app.staticTexts["Blue Bottle"].firstMatch.waitForExistence(timeout: 10))
     }
@@ -134,5 +135,139 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Spends"].waitForExistence(timeout: 10))
         let predicate = NSPredicate(format: "label CONTAINS '#trip' AND label CONTAINS '12.50'")
         XCTAssertTrue(app.staticTexts.matching(predicate).firstMatch.waitForExistence(timeout: 10), "the new $12.50 spend shows #trip")
+    }
+
+    // MARK: Splits and refunds
+
+    /// Replace a field's text: tap its right end (a tap elsewhere puts the cursor mid-text), delete it all, type the new value.
+    func replaceText(in field: XCUIElement, with text: String) {
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        let current = (field.value as? String) ?? ""
+        if !current.isEmpty { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count)) }
+        field.typeText(text)
+    }
+
+    func testSplittingASpendAcrossTwoCategories() {
+        openSpends()
+        app.buttons["Add spend"].tap()
+        for key in ["1", "0", "0", "0"] { app.buttons[key].tap() }   // $10.00
+        app.buttons["Split across categories"].tap()
+        XCTAssertTrue(app.navigationBars["Split"].waitForExistence(timeout: 5))
+        shot("split-start")
+
+        // It opens as two even halves ($5.00 + $5.00). Choose the categories, then make it $6.00 + $4.00.
+        app.buttons["No category"].firstMatch.tap(); app.buttons["Coffee"].tap()
+        app.buttons["No category"].firstMatch.tap(); app.buttons["Groceries"].tap()
+        // The sheet's amount fields (the editor's own fields are still in the hierarchy behind it).
+        let amounts = app.textFields.matching(NSPredicate(format: "placeholderValue == '0'"))
+        replaceText(in: amounts.element(boundBy: 0), with: "6.00")
+        replaceText(in: amounts.element(boundBy: 1), with: "4.00")
+        XCTAssertTrue(app.staticTexts["Adds up"].waitForExistence(timeout: 5), "a balanced split says so")
+        shot("split-balanced")
+        app.buttons["Done"].tap()
+        app.buttons["Save"].tap()
+
+        XCTAssertTrue(app.navigationBars["Spends"].waitForExistence(timeout: 10))
+        let predicate = NSPredicate(format: "label CONTAINS 'Coffee, Groceries' AND label CONTAINS '10.00'")
+        XCTAssertTrue(app.staticTexts.matching(predicate).firstMatch.waitForExistence(timeout: 10), "the row shows both categories")
+    }
+
+    func testAnUnbalancedSplitCannotBeClosedAsIfItWereFine() {
+        openSpends()
+        app.buttons["Add spend"].tap()
+        for key in ["1", "0", "0", "0"] { app.buttons[key].tap() }   // $10.00
+        app.buttons["Split across categories"].tap()
+        XCTAssertTrue(app.navigationBars["Split"].waitForExistence(timeout: 5))
+        // Two uncategorized halves are one category twice: not allowed.
+        XCTAssertTrue(app.staticTexts["Each category can only be used once."].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Done"].isEnabled)
+
+        app.buttons["No category"].firstMatch.tap(); app.buttons["Coffee"].tap()
+        app.buttons["No category"].firstMatch.tap(); app.buttons["Groceries"].tap()
+        XCTAssertTrue(app.staticTexts["Adds up"].waitForExistence(timeout: 5), "even halves with two categories are valid")
+        XCTAssertTrue(app.buttons["Done"].isEnabled)
+
+        let amounts = app.textFields.matching(NSPredicate(format: "placeholderValue == '0'"))
+        replaceText(in: amounts.element(boundBy: 0), with: "3.00")   // 3.00 + 5.00 of 10.00
+        XCTAssertTrue(app.staticTexts["$2.00 left to assign."].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Done"].isEnabled, "an unbalanced split cannot be closed as if it were fine")
+        shot("split-unbalanced")
+    }
+
+    func testLinkingARefundToItsExpense() {
+        openSpends()
+        app.buttons["Add spend"].tap()
+        app.buttons["Refund"].tap()
+        for key in ["5", "0", "0"] { app.buttons[key].tap() }   // $5.00
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Refund of'")).firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Refund of"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Whole Foods'")).firstMatch.waitForExistence(timeout: 10), "only expenses are offered")
+        shot("refund-picker")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS 'Whole Foods'")).firstMatch.tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Whole Foods'")).firstMatch.waitForExistence(timeout: 5), "the chosen expense is shown on the refund row")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.navigationBars["Spends"].waitForExistence(timeout: 10))
+
+        // The expense now shows what came back.
+        app.staticTexts["Whole Foods"].firstMatch.tap()
+        // Section headers are drawn in capitals, so match without regard to case.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ==[c] 'refunds'")).firstMatch.waitForExistence(timeout: 10), "an expense lists its refunds")
+        XCTAssertTrue(app.staticTexts["Net after refunds"].exists)
+        shot("expense-with-refund")
+    }
+
+    func testAttachingAndDetachingAReceiptOnASpend() {
+        openSpends()
+        app.staticTexts["Starbucks"].firstMatch.tap()
+        let attach = app.buttons["Attach a receipt or document"]
+        scrollTo(attach); attach.tap()
+        app.buttons["New document"].tap()
+        let title = app.textFields["Title (e.g. Costco receipt)"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("Latte receipt")
+        let ref = app.textFields["Where it lives (link or file name)"]; ref.tap(); ref.typeText("photos/latte.jpg")
+        app.buttons["Save"].tap()
+        let doc = app.staticTexts["Latte receipt"]
+        scrollTo(doc)
+        XCTAssertTrue(doc.waitForExistence(timeout: 10), "the new document is attached to the spend")
+        shot("evidence-attached")
+        doc.swipeLeft()
+        app.buttons["Detach"].tap()
+        let gone = NSPredicate(format: "exists == false")
+        expectation(for: gone, evaluatedWith: doc); waitForExpectations(timeout: 10)
+    }
+
+    func testADeletedTagCanBeFoundAndRestored() {
+        app.tabBars.buttons["More"].tap()
+        app.buttons["Tags"].tap()
+        app.navigationBars.buttons["Add tag"].tap()
+        let name = "temp-\(Int.random(in: 1000...9999))"
+        let field = app.alerts.textFields["Name"]; XCTAssertTrue(field.waitForExistence(timeout: 5)); field.typeText(name)
+        app.alerts.buttons["Save"].tap()
+        let row = app.staticTexts[name]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.swipeLeft(); app.buttons["Delete"].tap()
+        let gone = NSPredicate(format: "exists == false")
+        expectation(for: gone, evaluatedWith: row); waitForExpectations(timeout: 10)
+
+        app.buttons["Deleted"].tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "the deleted tag is listed under Deleted")
+        shot("organize-deleted")
+        row.swipeLeft(); app.buttons["Restore"].tap()
+        expectation(for: gone, evaluatedWith: row); waitForExpectations(timeout: 10)
+        app.buttons["Active"].tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "restoring brings it back")
+    }
+
+    func testTappingAnInsightsRowOpensThoseSpends() {
+        app.tabBars.buttons["Insights"].tap()
+        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 10))
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Coffee'")).firstMatch
+        scrollTo(row, max: 8)
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "the category breakdown lists Coffee")
+        shot("insights-breakdown")
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Spends"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Remove filter Coffee"].waitForExistence(timeout: 10), "the category is now a filter chip")
+        shot("insights-drilldown")
     }
 }

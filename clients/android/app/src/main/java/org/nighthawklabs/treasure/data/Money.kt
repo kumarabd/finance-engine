@@ -24,6 +24,16 @@ object Money {
         return minor / Math.pow(10.0, digits.toDouble())
     }
 
+    /** An amount as plain editable text ("12.50", "1200" for yen): no symbol, no grouping. */
+    fun plain(minor: Long, currency: String): String {
+        val digits = org.nighthawklabs.treasure.ingest.AmountParse.fractionDigits(currency)
+        return BigDecimal.valueOf(minor, digits).toPlainString()
+    }
+
+    /** Text typed into an amount field ("12.50", "1,200", "5") as minor units of [currency]; null when it isn't a number. */
+    fun parseMinor(text: String, currency: String): Long? =
+        org.nighthawklabs.treasure.ingest.AmountParse.parseCell(text, org.nighthawklabs.treasure.ingest.AmountParse.fractionDigits(currency))?.minor
+
     /** Signed minor units: refunds flow back in, expenses out; transfers are neither. */
     fun signed(s: Spend): Long = when (s.kind) {
         "refund" -> s.amountMinor

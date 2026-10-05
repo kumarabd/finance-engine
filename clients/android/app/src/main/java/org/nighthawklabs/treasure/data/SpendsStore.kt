@@ -74,6 +74,18 @@ class SpendsStore(
         }
     }
 
+    suspend fun search(filter: SpendFilter, limit: Int = 30): Api<List<Spend>> =
+        engine.call<SearchInput, Page<Spend>>("spends_search", filter.input(limit = limit)).let { r -> if (r is Api.Ok) Api.Ok(r.value.items) else r as Api<List<Spend>> }
+
+    /** Attach or detach one document. The spend gets a new version, which replaces the list copy. */
+    suspend fun link(spend: Spend, evidenceId: String, attach: Boolean): Api<Spend> =
+        engine.call<EvidenceLinkInput, Spend>(if (attach) "evidence_attach" else "evidence_detach", EvidenceLinkInput(UUID.randomUUID().toString(), spend.id, spend.version, evidenceId))
+            .also { if (it is Api.Ok) stored(it.value) }
+
+    /** A spend by id: from the loaded list when present, else from the engine. */
+    suspend fun lookup(id: String): Spend? =
+        _state.value.spends.firstOrNull { it.id == id } ?: (engine.call<GetInput, Spend>("spends_get", GetInput(id)) as? Api.Ok)?.value
+
     suspend fun history(id: String): Api<Page<Change>> = engine.call("history_list", HistoryInput("spend", id))
 
     // region Offline

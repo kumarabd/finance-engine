@@ -63,6 +63,29 @@ final class SpendsModel {
         } else { problem = r.problem }
     }
 
+    // MARK: Look-ups that leave the list alone
+
+    /// A one-off search (picking the expense a refund belongs to, listing an expense's refunds).
+    func search(_ filter: SpendFilter, limit: Int = 30) async -> Api<[Spend]> {
+        let r: Api<Page<Spend>> = await engine.call("spends_search", filter.input(limit: limit))
+        return r.map { $0.items }
+    }
+
+    /// Attach or detach one document. The spend gets a new version, which replaces the list copy.
+    func link(_ spend: Spend, evidenceId: String, attach: Bool) async -> Api<Spend> {
+        let r: Api<Spend> = await engine.call(attach ? "evidence_attach" : "evidence_detach",
+                                              EvidenceLinkInput(idempotencyKey: UUID().uuidString, id: spend.id, expectedVersion: spend.version, evidenceId: evidenceId))
+        if case .ok(let s) = r { stored(s) }
+        return r
+    }
+
+    func lookup(_ id: String) async -> Spend? {
+        if let s = spends.first(where: { $0.id == id }) { return s }
+        let r: Api<Spend> = await engine.call("spends_get", GetInput(id: id))
+        if case .ok(let s) = r { return s }
+        return nil
+    }
+
     // MARK: Offline
 
     var pending: [OutboxItem] { outbox.items }

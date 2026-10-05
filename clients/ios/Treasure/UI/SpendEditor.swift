@@ -28,6 +28,12 @@ struct SpendEditor: View {
     @State private var tagIds: Set<String> = []
     @State private var pickingTags = false
     @State private var note = ""
+    @State private var account = ""
+    @State private var splitRows: [SplitRow] = []
+    @State private var editingSplits = false
+    @State private var originalId: String?
+    @State private var originalLabel = ""
+    @State private var pickingOriginal = false
     @State private var saving = false
     @State private var error: String?
     @State private var saved = 0
@@ -35,8 +41,9 @@ struct SpendEditor: View {
     @State private var key = UUID().uuidString
     @FocusState private var typing: Bool
 
-    private var splits: Bool { (original?.allocations?.count ?? 0) > 1 }
-    private var canSave: Bool { entry.minor > 0 && !saving }
+    private var isSplit: Bool { splitRows.count > 1 }
+    private var splitProblem: String? { Splits.problem(total: entry.minor, rows: splitRows, currency: currency) }
+    private var canSave: Bool { entry.minor > 0 && !saving && splitProblem == nil }
 
     var body: some View {
         NavigationStack {
@@ -51,10 +58,12 @@ struct SpendEditor: View {
                         merchantField
                         categoryChips
                         tagsRow
+                        if kind == "refund" { refundRow }
                         HStack {
                             DatePicker("Date", selection: $date, displayedComponents: .date)
                         }
                         TextField("Note", text: $note).focused($typing).field()
+                        TextField("Account (optional)", text: $account).focused($typing).field()
                         if let error { Text(error).font(.callout).foregroundStyle(Tok.critical) }
                     }
                     .padding(20)
@@ -140,21 +149,49 @@ struct SpendEditor: View {
         }
     }
 
+    /// Either one category (chips), or a split across several.
     private var categoryChips: some View {
         let cats = directory.categoriesByUse(spends.spends)
-        return Group {
-            if !cats.isEmpty && !splits {
-                ScrollView(.horizontal, showsIndicators: false) {
+        return VStack(alignment: .leading, spacing: 8) {
+            if isSplit {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(splitRows) { r in
+                        HStack { Text(directory.category(r.categoryId) ?? "No category"); Spacer(); Text(Money.format(r.amountMinor, currency: currency)).amountStyle() }.font(.subheadline)
+                    }
+                    if let p = splitProblem { Text(p).font(.footnote).foregroundStyle(Tok.warn) }
                     HStack {
-                        ForEach(cats) { c in
-                            chip(c.name, selected: categoryId == c.id) { categoryId = categoryId == c.id ? nil : c.id }
-                        }
+                        Button("Edit split") { editingSplits = true }.frame(minHeight: 44)
+                        Button("Remove split", role: .destructive) { categoryId = splitRows.first?.categoryId; splitRows = [] }.frame(minHeight: 44)
+                    }.font(.subheadline.weight(.medium))
+                }
+                .padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Tok.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            } else {
+                if !cats.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack { ForEach(cats) { c in chip(c.name, selected: categoryId == c.id) { categoryId = categoryId == c.id ? nil : c.id } } }
                     }
                 }
-            } else if splits {
-                Text("Split across \(original?.allocations?.count ?? 0) categories. Edit splits isn't available yet.")
-                    .font(.footnote).foregroundStyle(Tok.muted)
+                if entry.minor > 1 {
+                    Button { splitRows = Splits.start(categoryId: categoryId, total: entry.minor); editingSplits = true } label: { Label("Split across categories", systemImage: "square.split.2x1") }
+                        .font(.subheadline.weight(.medium)).frame(minHeight: 44)
+                }
             }
+        }
+        .sheet(isPresented: $editingSplits, onDismiss: {
+            // Taken back down to one line, a split is just a category again.
+            if splitRows.count <= 1 { categoryId = splitRows.first?.categoryId ?? categoryId; splitRows = [] }
+        }) { SplitSheet(rows: $splitRows, total: entry.minor, currency: currency) }
+    }
+
+    /// Which expense this refund gives back, so the two net out and the expense shows what came back.
+    private var refundRow: some View {
+        Button { pickingOriginal = true } label: {
+            HStack { Text("Refund of").foregroundStyle(Tok.muted); Spacer(); Text(originalId == nil ? "None" : originalLabel).foregroundStyle(Tok.text).lineLimit(1); Image(systemName: "chevron.right").font(.caption).foregroundStyle(Tok.muted) }
+                .padding(.horizontal, 14).frame(minHeight: 52).background(Tok.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $pickingOriginal) {
+            OriginalPicker(currency: currency, selected: originalId) { id, label in originalId = id; originalLabel = label }
         }
     }
 
@@ -185,7 +222,6 @@ struct SpendEditor: View {
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(Tok.text)
-                        .disabled(splits)
                         .sensoryFeedback(.selection, trigger: entry)
                         .accessibilityLabel(k == "⌫" ? "Delete" : k)
                     }
@@ -214,7 +250,11 @@ struct SpendEditor: View {
         merchant = directory.merchant(o.merchantId) ?? ""
         note = o.description ?? ""
         categoryId = o.allocations?.count == 1 ? o.allocations?.first?.categoryId : nil
+        splitRows = Splits.rows(from: o.allocations)
         tagIds = Set(o.tagIds ?? [])
+        account = o.accountRef ?? ""
+        originalId = o.originalSpendId
+        if let oid = o.originalSpendId { Task { if let s = await spends.lookup(oid) { originalLabel = OriginalPicker.label(s, directory: directory) } } }
     }
 
     private func save() async {
@@ -233,10 +273,10 @@ struct SpendEditor: View {
         input.kind = kind; input.currency = currency
         input.merchantId = merchantId
         input.description = note.trimmingCharacters(in: .whitespaces).isEmpty ? nil : note.trimmingCharacters(in: .whitespaces)
-        if !splits {
-            input.amountMinor = entry.minor
-            input.allocations = categoryId.map { [Allocation(categoryId: $0, amountMinor: entry.minor)] }
-        }
+        input.amountMinor = entry.minor
+        input.allocations = isSplit ? Splits.allocations(splitRows) : categoryId.map { [Allocation(categoryId: $0, amountMinor: entry.minor)] }
+        input.accountRef = account.trimmingCharacters(in: .whitespaces).isEmpty ? nil : account.trimmingCharacters(in: .whitespaces)
+        input.originalSpendId = kind == "refund" ? originalId : nil   // only a refund may point at an original expense
         input.tagIds = tagIds.isEmpty ? nil : tagIds.sorted()
         if original == nil { input.source = "ios"; input.sourceRecordId = key }
 
