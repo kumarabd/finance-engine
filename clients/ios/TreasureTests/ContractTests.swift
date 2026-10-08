@@ -68,4 +68,56 @@ final class ContractTests: XCTestCase {
             XCTAssertTrue(ImportSession.alreadyThere(code))
         }
     }
+
+    /// Budgets carry their own progress, so the screen never has to combine a
+    /// limit list with a separate totals call and never disagrees with the server.
+    func testBudgetStatus() throws {
+        let r = try decode(StatusResult.self, "budget_status")
+        XCTAssertEqual(r.items.count, 3)
+
+        let dining = try XCTUnwrap(r.items.first { $0.name == "Dining out" })
+        XCTAssertFalse(dining.coversAllSpending)
+        XCTAssertEqual(dining.spentMinor, 1650000)
+        XCTAssertEqual(dining.remainingMinor, 350000)
+        XCTAssertEqual(dining.percent, 82)
+        XCTAssertTrue(dining.alerted)
+        XCTAssertFalse(dining.over)
+        XCTAssertEqual(dining.alertFraction, 0.8, accuracy: 0.001)
+
+        // A budget on all spending omits category_id entirely rather than sending
+        // an empty one, so nil here is the contract working, not missing data.
+        let everything = try XCTUnwrap(r.items.first { $0.name == "Everything" })
+        XCTAssertTrue(everything.coversAllSpending)
+        XCTAssertNil(everything.categoryID)
+        XCTAssertEqual(everything.subject, "All spending")
+        XCTAssertFalse(everything.alerted)
+
+        // Over the limit: remaining is clamped to zero rather than going negative,
+        // percent is allowed past 100, and the bar itself stays clamped.
+        let groceries = try XCTUnwrap(r.items.first { $0.name == "Weekly groceries" })
+        XCTAssertEqual(groceries.currency, "JPY")
+        XCTAssertTrue(groceries.over)
+        XCTAssertEqual(groceries.remainingMinor, 0)
+        XCTAssertEqual(groceries.percent, 101)
+        XCTAssertEqual(groceries.fraction, 1.0, accuracy: 0.001)
+        XCTAssertEqual(groceries.periodKey, "2026-10-05")
+    }
+
+    func testBudgetFires() throws {
+        let r = try decode(FiresResult.self, "budget_fires")
+        XCTAssertEqual(r.items.count, 2)
+
+        let undelivered = try XCTUnwrap(r.items.first { $0.name == "Dining out" })
+        XCTAssertEqual(undelivered.observedMinor, 1650000)
+        XCTAssertEqual(undelivered.alertMinor, 1600000)
+        XCTAssertEqual(undelivered.percent, 82)
+        // Timestamps stay strings: no decoder in this app sets a date strategy, so
+        // a Date field here would fail to decode against the engine's RFC3339.
+        XCTAssertEqual(undelivered.firedAt, "2026-10-08T13:41:22Z")
+        XCTAssertNil(undelivered.deliveredAt)
+
+        let delivered = try XCTUnwrap(r.items.first { $0.name == "Everything" })
+        XCTAssertNotNil(delivered.deliveredAt)
+        XCTAssertEqual(delivered.percent, 104)
+    }
 }

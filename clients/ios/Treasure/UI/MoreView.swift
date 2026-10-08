@@ -25,10 +25,17 @@ struct MoreView: View {
     @State private var problem: String?
     @State private var lockProblem: String?
     @Environment(AppLock.self) private var lock
+    @Environment(Router.self) private var router
 
     var body: some View {
+        @Bindable var router = router
         NavigationStack {
             List {
+                Section {
+                    Button { router.spendsOpen = true } label: { HStack { Label("Spends", systemImage: "list.bullet"); Spacer(); Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Tok.muted) } }.foregroundStyle(Tok.text)
+                        .frame(minHeight: 44).listRowBackground(Tok.surface)
+                    NavigationLink("Budgets") { BudgetsView() }.frame(minHeight: 44).listRowBackground(Tok.surface)
+                }
                 Section("Organize") {
                     ForEach(DimensionKind.allCases) { k in
                         NavigationLink(k.title) { OrganizeView(kind: k) }.frame(minHeight: 44).listRowBackground(Tok.surface)
@@ -63,6 +70,8 @@ struct MoreView: View {
             .scrollContentBackground(.hidden)
             .background(Tok.background)
             .navigationTitle("More")
+            .navigationDestination(for: Spend.self) { SpendDetailView(initial: $0) }
+            .navigationDestination(isPresented: $router.spendsOpen) { SpendsView(embedded: true) }
         }
     }
 
