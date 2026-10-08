@@ -344,10 +344,12 @@ type FiresResult struct {
 // reads. See events.go for why these two operations exist and why they are named
 // for a mechanism rather than a use case.
 type Event struct {
-	EventKey  string `json:"event_key" jsonschema:"What is being watched. Subscribers are registered against this, so it stays stable across occurrences of the same thing."`
-	EventID   string `json:"event_id" jsonschema:"This occurrence, a durable id rather than a timestamp, so re-delivering the same one is detectable."`
-	Objective string `json:"objective" jsonschema:"What happened, in one sentence, for whoever gets woken about it."`
-	Why       string `json:"why,omitempty"`
+	EventKey string `json:"event_key" jsonschema:"What is being watched. Subscribers are registered against this, so it stays stable across occurrences of the same thing."`
+	EventID  string `json:"event_id" jsonschema:"This occurrence, a durable id rather than a timestamp, so re-delivering the same one is detectable."`
+	// Deliberately not "objective": the armer's objective is its own standing
+	// instruction and travels separately, so calling this one that would put two
+	// different things under one word in the same payload. This is what happened.
+	Detail string `json:"detail" jsonschema:"What happened, in one sentence, for whoever gets woken about it."`
 }
 type EventsResult struct {
 	Items []Event `json:"items"`

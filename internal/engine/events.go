@@ -24,6 +24,11 @@ import (
 // read is deliberately unordered by anything but age: [Event] carries no priority,
 // because ordering notices against each other is not something the engine knows how
 // to do and not something the delivery loop needs.
+//
+// A notice says what happened, never what to do about it. The armer's own objective
+// travels with its subscription and reaches the same turn alongside this, so an
+// engine that tried to phrase an instruction here would be speaking for someone
+// else — and it is the wrong party to know what the person wanted done.
 func (u *unit) eventsPending(ctx context.Context) (EventsResult, error) {
 	result := EventsResult{Items: []Event{}}
 	rows, err := u.tx.Query(ctx,
@@ -55,9 +60,9 @@ func (u *unit) eventsPending(ctx context.Context) (EventsResult, error) {
 			// which is the worst kind of bug: invisible until it bites a month
 			// later. Once per period is already handled by the fire itself, whose
 			// id is unique per crossing, so EventID is what distinguishes them.
-			EventKey:  budgetEventKey(budgetID),
-			EventID:   id,
-			Objective: fmt.Sprintf("%s is at %d%% of its %s budget.", name, percent, span),
+			EventKey: budgetEventKey(budgetID),
+			EventID:  id,
+			Detail:   fmt.Sprintf("%s is at %d%% of its %s budget.", name, percent, span),
 		})
 	}
 	return result, rows.Err()

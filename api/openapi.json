@@ -1442,6 +1442,10 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "detail": {
+                  "description": "What happened, in one sentence, for whoever gets woken about it.",
+                  "type": "string"
+                },
                 "event_id": {
                   "description": "This occurrence, a durable id rather than a timestamp, so re-delivering the same one is detectable.",
                   "type": "string"
@@ -1449,19 +1453,12 @@
                 "event_key": {
                   "description": "What is being watched. Subscribers are registered against this, so it stays stable across occurrences of the same thing.",
                   "type": "string"
-                },
-                "objective": {
-                  "description": "What happened, in one sentence, for whoever gets woken about it.",
-                  "type": "string"
-                },
-                "why": {
-                  "type": "string"
                 }
               },
               "required": [
                 "event_key",
                 "event_id",
-                "objective"
+                "detail"
               ],
               "type": "object"
             },
