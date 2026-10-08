@@ -80,7 +80,16 @@ func scanBudget(row scanner) (Budget, error) {
 	}
 	b.CreatedAt = b.CreatedAt.UTC()
 	b.UpdatedAt = b.UpdatedAt.UTC()
+	b.EventKey = budgetEventKey(b.ID)
 	return b, nil
+}
+
+// budgetEventKey is the join between what this engine raises (events.go) and what a
+// subscriber registered against. One definition used by both, because a drift between
+// the key published here and the key raised there is a watch that silently never
+// fires — the failure mode with the longest delay between cause and symptom.
+func budgetEventKey(budgetID string) string {
+	return "budget:" + budgetID
 }
 
 // getBudget returns the raw scan error when nothing matches; `PublicError` maps

@@ -155,6 +155,10 @@
                   "description": "A limit is meaningless without a currency, and currencies are never combined.",
                   "type": "string"
                 },
+                "event_key": {
+                  "description": "Pass this to arm_wake's on_event argument to be told when this budget crosses its alert line.",
+                  "type": "string"
+                },
                 "id": {
                   "type": "string"
                 },
@@ -215,6 +219,7 @@
                 "limit_minor",
                 "currency",
                 "notify_at_percent",
+                "event_key",
                 "active",
                 "created_at",
                 "updated_at",
@@ -314,6 +319,10 @@
             "description": "A limit is meaningless without a currency, and currencies are never combined.",
             "type": "string"
           },
+          "event_key": {
+            "description": "Pass this to arm_wake's on_event argument to be told when this budget crosses its alert line.",
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -353,6 +362,7 @@
           "limit_minor",
           "currency",
           "notify_at_percent",
+          "event_key",
           "active",
           "created_at",
           "updated_at"
@@ -406,6 +416,10 @@
             "description": "A limit is meaningless without a currency, and currencies are never combined.",
             "type": "string"
           },
+          "event_key": {
+            "description": "Pass this to arm_wake's on_event argument to be told when this budget crosses its alert line.",
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -445,6 +459,7 @@
           "limit_minor",
           "currency",
           "notify_at_percent",
+          "event_key",
           "active",
           "created_at",
           "updated_at"
@@ -487,6 +502,10 @@
             "description": "A limit is meaningless without a currency, and currencies are never combined.",
             "type": "string"
           },
+          "event_key": {
+            "description": "Pass this to arm_wake's on_event argument to be told when this budget crosses its alert line.",
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -526,6 +545,7 @@
           "limit_minor",
           "currency",
           "notify_at_percent",
+          "event_key",
           "active",
           "created_at",
           "updated_at"
@@ -575,6 +595,10 @@
                   "description": "A limit is meaningless without a currency, and currencies are never combined.",
                   "type": "string"
                 },
+                "event_key": {
+                  "description": "Pass this to arm_wake's on_event argument to be told when this budget crosses its alert line.",
+                  "type": "string"
+                },
                 "id": {
                   "type": "string"
                 },
@@ -614,6 +638,7 @@
                 "limit_minor",
                 "currency",
                 "notify_at_percent",
+                "event_key",
                 "active",
                 "created_at",
                 "updated_at"
@@ -711,6 +736,10 @@
             "description": "A limit is meaningless without a currency, and currencies are never combined.",
             "type": "string"
           },
+          "event_key": {
+            "description": "Pass this to arm_wake's on_event argument to be told when this budget crosses its alert line.",
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -750,6 +779,7 @@
           "limit_minor",
           "currency",
           "notify_at_percent",
+          "event_key",
           "active",
           "created_at",
           "updated_at"
@@ -1367,6 +1397,82 @@
           "deleted_at",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "events_ack_input": {
+        "additionalProperties": false,
+        "properties": {
+          "event_ids": {
+            "description": "The event ids that were handed over. Acks are idempotent, so re-sending one is harmless.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "event_ids"
+        ],
+        "type": "object"
+      },
+      "events_ack_output": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledged": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "acknowledged"
+        ],
+        "type": "object"
+      },
+      "events_pending_input": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "events_pending_output": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "event_id": {
+                  "description": "This occurrence, a durable id rather than a timestamp, so re-delivering the same one is detectable.",
+                  "type": "string"
+                },
+                "event_key": {
+                  "description": "What is being watched. Subscribers are registered against this, so it stays stable across occurrences of the same thing.",
+                  "type": "string"
+                },
+                "objective": {
+                  "description": "What happened, in one sentence, for whoever gets woken about it.",
+                  "type": "string"
+                },
+                "why": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "event_key",
+                "event_id",
+                "objective"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
         ],
         "type": "object"
       },
@@ -7004,6 +7110,196 @@
         ],
         "x-mcp-tool": "categories_update",
         "x-read-only": false
+      }
+    },
+    "/api/v1/operations/events_ack": {
+      "post": {
+        "description": "Mark alerts delivered so they are not handed over twice. Called by the hub's delivery loop, not by the agent.",
+        "operationId": "events_ack",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/events_ack_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/events_ack_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "events_ack",
+        "x-read-only": false
+      }
+    },
+    "/api/v1/operations/events_pending": {
+      "post": {
+        "description": "Hand over the alerts this engine has recorded and not yet delivered. Called by the hub's delivery loop, not by the agent.",
+        "operationId": "events_pending",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/events_pending_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/events_pending_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "events_pending",
+        "x-read-only": true
       }
     },
     "/api/v1/operations/evidence_attach": {

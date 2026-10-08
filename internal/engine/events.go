@@ -55,7 +55,7 @@ func (u *unit) eventsPending(ctx context.Context) (EventsResult, error) {
 			// which is the worst kind of bug: invisible until it bites a month
 			// later. Once per period is already handled by the fire itself, whose
 			// id is unique per crossing, so EventID is what distinguishes them.
-			EventKey:  "budget:" + budgetID,
+			EventKey:  budgetEventKey(budgetID),
 			EventID:   id,
 			Objective: fmt.Sprintf("%s is at %d%% of its %s budget.", name, percent, span),
 		})

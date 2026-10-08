@@ -250,20 +250,23 @@ type Change struct {
 // happening. Crossings accumulate in `budget_fires`; delivering one is the waking
 // side's job.
 type Budget struct {
-	ID              string    `json:"id"`
-	Version         int64     `json:"version"`
-	Name            string    `json:"name" jsonschema:"Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess."`
-	Kind            string    `json:"kind" jsonschema:"category when the budget covers one category, total when it covers all spending."`
-	CategoryID      string    `json:"category_id,omitempty" jsonschema:"Empty for a budget on all spending."`
-	CategoryName    string    `json:"category_name,omitempty"`
-	Period          string    `json:"period" jsonschema:"week or month — a calendar period, not a rolling window."`
-	LimitMinor      int64     `json:"limit_minor" jsonschema:"The limit, in currency minor units."`
-	Currency        string    `json:"currency" jsonschema:"A limit is meaningless without a currency, and currencies are never combined."`
-	NotifyAtPercent int       `json:"notify_at_percent" jsonschema:"Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act."`
-	CallbackToken   string    `json:"callback_token,omitempty" jsonschema:"Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here."`
-	Active          bool      `json:"active"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              string `json:"id"`
+	Version         int64  `json:"version"`
+	Name            string `json:"name" jsonschema:"Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess."`
+	Kind            string `json:"kind" jsonschema:"category when the budget covers one category, total when it covers all spending."`
+	CategoryID      string `json:"category_id,omitempty" jsonschema:"Empty for a budget on all spending."`
+	CategoryName    string `json:"category_name,omitempty"`
+	Period          string `json:"period" jsonschema:"week or month — a calendar period, not a rolling window."`
+	LimitMinor      int64  `json:"limit_minor" jsonschema:"The limit, in currency minor units."`
+	Currency        string `json:"currency" jsonschema:"A limit is meaningless without a currency, and currencies are never combined."`
+	NotifyAtPercent int    `json:"notify_at_percent" jsonschema:"Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act."`
+	CallbackToken   string `json:"callback_token,omitempty" jsonschema:"Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here."`
+	// The key a subscriber registers against, so the agent never has to construct one
+	// from an id and a guessed format. Derived, never stored: see budgetEventKey.
+	EventKey  string    `json:"event_key" jsonschema:"Pass this to arm_wake's on_event argument to be told when this budget crosses its alert line."`
+	Active    bool      `json:"active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 type BudgetInput struct {
 	Name            string `json:"name"`
