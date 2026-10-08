@@ -138,4 +138,17 @@ func (s *Service) registerOperations() {
 		func(ctx context.Context, u *unit, in ListFiresInput) (FiresResult, error) {
 			return u.listBudgetFires(ctx, in)
 		})
+
+	// The delivery contract (events.go) — the only two operations here named for a
+	// mechanism rather than a use case, because they are not for the agent. mcp-hub
+	// looks for them by name on every connection and calls them blind, which is what
+	// lets one delivery loop serve this engine and the maps engine alike.
+	register(s, "events_pending", "Hand over the alerts this engine has recorded and not yet delivered. Called by the hub's delivery loop, not by the agent.", false,
+		func(ctx context.Context, u *unit, _ struct{}) (EventsResult, error) {
+			return u.eventsPending(ctx)
+		})
+	register(s, "events_ack", "Mark alerts delivered so they are not handed over twice. Called by the hub's delivery loop, not by the agent.", true,
+		func(ctx context.Context, u *unit, in AckEventsInput) (AckEventsResult, error) {
+			return u.eventsAck(ctx, in)
+		})
 }

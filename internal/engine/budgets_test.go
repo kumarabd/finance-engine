@@ -96,3 +96,35 @@ func TestBudgetOperationsExist(t *testing.T) {
 		t.Error("subscriptions_create is back — a budget is one concept, not a watcher plus a limit")
 	}
 }
+
+// The delivery contract (events.go). mcp-hub finds this pair by name on every
+// connection and calls it blind, so a rename here does not fail loudly — it silently
+// stops delivery for this engine, which is exactly why the names are pinned.
+func TestDeliveryContractOperationsExist(t *testing.T) {
+	s := New(nil)
+	byName := map[string]*Operation{}
+	for _, op := range s.Operations() {
+		byName[op.Name] = op
+	}
+
+	pending, ok := byName["events_pending"]
+	if !ok {
+		t.Fatal("missing events_pending — mcp-hub has nothing to drain")
+	}
+	if pending.Write {
+		t.Error("events_pending only reads; advertising it as a write is wrong")
+	}
+
+	ack, ok := byName["events_ack"]
+	if !ok {
+		t.Fatal("missing events_ack — delivery would repeat forever")
+	}
+	if !ack.Write {
+		t.Error("events_ack sets delivered_at, so it must not be advertised read-only")
+	}
+	for _, op := range []*Operation{pending, ack} {
+		if op.InputSchema == nil || op.OutputSchema == nil {
+			t.Errorf("%s has no schema, so mcp-hub cannot construct a call", op.Name)
+		}
+	}
+}

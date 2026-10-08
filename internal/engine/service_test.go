@@ -78,7 +78,7 @@ func create(t *testing.T, s *Service, p Principal, input SpendInput) Spend {
 func v(s Spend) Versioned { return Versioned{ID: s.ID, ExpectedVersion: s.Version} }
 func TestRegistryAndInputValidation(t *testing.T) {
 	s := New(nil)
-	if len(s.Operations()) != 49 {
+	if len(s.Operations()) != 51 {
 		t.Fatalf("operations=%d", len(s.Operations()))
 	}
 	for _, op := range s.Operations() {
@@ -92,7 +92,7 @@ func TestRegistryAndInputValidation(t *testing.T) {
 	reject(t, s, Principal{}, "spends_get", GetInput{ID: "x"}, "unauthorized")
 	reject(t, s, p, "unknown", map[string]any{}, "not_found")
 	spec := s.OpenAPI()
-	if len(spec["paths"].(map[string]any)) != 49 {
+	if len(spec["paths"].(map[string]any)) != 51 {
 		t.Fatal("HTTP parity")
 	}
 }

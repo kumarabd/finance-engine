@@ -336,3 +336,22 @@ type ListFiresInput struct {
 type FiresResult struct {
 	Items []BudgetFire `json:"items"`
 }
+
+// Event is one thing this engine noticed, in the shape mcp-hub's delivery loop
+// reads. See events.go for why these two operations exist and why they are named
+// for a mechanism rather than a use case.
+type Event struct {
+	EventKey  string `json:"event_key" jsonschema:"What is being watched. Subscribers are registered against this, so it stays stable across occurrences of the same thing."`
+	EventID   string `json:"event_id" jsonschema:"This occurrence, a durable id rather than a timestamp, so re-delivering the same one is detectable."`
+	Objective string `json:"objective" jsonschema:"What happened, in one sentence, for whoever gets woken about it."`
+	Why       string `json:"why,omitempty"`
+}
+type EventsResult struct {
+	Items []Event `json:"items"`
+}
+type AckEventsInput struct {
+	EventIDs []string `json:"event_ids" jsonschema:"The event ids that were handed over. Acks are idempotent, so re-sending one is harmless."`
+}
+type AckEventsResult struct {
+	Acknowledged int `json:"acknowledged"`
+}
