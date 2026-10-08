@@ -239,3 +239,100 @@ type Change struct {
 	Before     json.RawMessage `json:"before"`
 	After      json.RawMessage `json:"after"`
 }
+
+// Budget — a limit you set on spending, and the notification when you cross it.
+// One concept, not two: the limit and the alert live on the same row, because
+// "tell me when dining exceeds 20,000" and "my dining budget is 20,000" are the
+// same sentence.
+//
+// The limit is evaluated when a spend is written, not on a schedule, so a
+// crossing is detected as it happens and costs nothing while nothing is
+// happening. Crossings accumulate in `budget_fires`; delivering one is the waking
+// side's job.
+type Budget struct {
+	ID              string    `json:"id"`
+	Version         int64     `json:"version"`
+	Name            string    `json:"name" jsonschema:"Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess."`
+	Kind            string    `json:"kind" jsonschema:"category when the budget covers one category, total when it covers all spending."`
+	CategoryID      string    `json:"category_id,omitempty" jsonschema:"Empty for a budget on all spending."`
+	CategoryName    string    `json:"category_name,omitempty"`
+	Period          string    `json:"period" jsonschema:"week or month — a calendar period, not a rolling window."`
+	LimitMinor      int64     `json:"limit_minor" jsonschema:"The limit, in currency minor units."`
+	Currency        string    `json:"currency" jsonschema:"A limit is meaningless without a currency, and currencies are never combined."`
+	NotifyAtPercent int       `json:"notify_at_percent" jsonschema:"Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act."`
+	CallbackToken   string    `json:"callback_token,omitempty" jsonschema:"Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here."`
+	Active          bool      `json:"active"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+type BudgetInput struct {
+	Name            string `json:"name"`
+	CategoryID      string `json:"category_id,omitempty" jsonschema:"Omit to budget all spending."`
+	Period          string `json:"period" jsonschema:"week or month."`
+	LimitMinor      int64  `json:"limit_minor"`
+	Currency        string `json:"currency"`
+	NotifyAtPercent int    `json:"notify_at_percent,omitempty" jsonschema:"Defaults to 100."`
+	CallbackToken   string `json:"callback_token,omitempty"`
+}
+type CreateBudgetInput struct {
+	Meta
+	Budget BudgetInput `json:"budget"`
+}
+type UpdateBudgetInput struct {
+	Versioned
+	Budget BudgetInput `json:"budget" jsonschema:"Category and kind are fixed at creation; delete and recreate to move a budget to another category."`
+}
+type ListBudgetsInput struct {
+	IncludeInactive bool `json:"include_inactive,omitempty"`
+	Limit           int  `json:"limit,omitempty"`
+	Offset          int  `json:"offset,omitempty"`
+}
+type BudgetsResult struct {
+	Items []Budget `json:"items"`
+}
+
+// BudgetStatus — what a budgets screen renders: how much of the current period's
+// limit has been used, what is left, and whether the alert line has been crossed.
+// Computed from live spending, never from the fire log, so a budget is true about
+// the ledger whether or not anybody heard about it.
+type BudgetStatus struct {
+	Budget
+	PeriodKey      string `json:"period_key" jsonschema:"The period this status describes, e.g. 2026-10."`
+	PeriodFrom     string `json:"period_from"`
+	PeriodTo       string `json:"period_to"`
+	SpentMinor     int64  `json:"spent_minor"`
+	RemainingMinor int64  `json:"remaining_minor" jsonschema:"Never negative: an exceeded budget reports zero left, not a negative allowance."`
+	Percent        int    `json:"percent" jsonschema:"May exceed 100 when the budget is over."`
+	AlertMinor     int64  `json:"alert_minor" jsonschema:"The amount the alert fires at, derived from limit_minor and notify_at_percent."`
+	Alerted        bool   `json:"alerted"`
+}
+type StatusInput struct {
+	IncludeInactive bool `json:"include_inactive,omitempty"`
+}
+type StatusResult struct {
+	Items []BudgetStatus `json:"items"`
+}
+
+// BudgetFire — one recorded crossing. Append-only: a crossing is a fact about the
+// past, and `DeliveredAt` is the only field delivery ever writes.
+type BudgetFire struct {
+	ID            string     `json:"id"`
+	BudgetID      string     `json:"budget_id"`
+	Name          string     `json:"name"`
+	PeriodKey     string     `json:"period_key" jsonschema:"The period the limit was crossed in, e.g. 2026-10. One crossing fires once, however many spends follow."`
+	ObservedMinor int64      `json:"observed_minor" jsonschema:"What the total actually was at the crossing, so a fire explains itself without recomputation."`
+	LimitMinor    int64      `json:"limit_minor"`
+	AlertMinor    int64      `json:"alert_minor" jsonschema:"The alert line that was crossed."`
+	Percent       int        `json:"percent"`
+	Currency      string     `json:"currency"`
+	FiredAt       time.Time  `json:"fired_at"`
+	DeliveredAt   *time.Time `json:"delivered_at,omitempty"`
+}
+type ListFiresInput struct {
+	BudgetID string `json:"budget_id,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
+	Offset   int    `json:"offset,omitempty"`
+}
+type FiresResult struct {
+	Items []BudgetFire `json:"items"`
+}

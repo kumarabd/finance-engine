@@ -194,6 +194,13 @@ func (u *unit) createSpend(ctx context.Context, input SpendInput) (Spend, error)
 	if err != nil {
 		return result, err
 	}
+	// Evaluate budgets in this same transaction, after the row exists, so the
+	// aggregate they compute includes the write that triggered it. A failure rolls
+	// the spend back with it: a recorded spend whose crossing was silently dropped
+	// would be a budget that lies about the month.
+	if err = u.evaluateBudgets(ctx, result); err != nil {
+		return result, err
+	}
 	return result, u.audit(ctx, "spend", id, nil, result)
 }
 func (u *unit) updateSpend(ctx context.Context, id string, expected int64, input SpendInput) (Spend, error) {

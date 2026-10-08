@@ -24,6 +24,738 @@
         ],
         "type": "object"
       },
+      "budget_fires_list_input": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_id": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "budget_fires_list_output": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "alert_minor": {
+                  "description": "The alert line that was crossed.",
+                  "type": "integer"
+                },
+                "budget_id": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "delivered_at": {
+                  "type": [
+                    "null",
+                    "string"
+                  ]
+                },
+                "fired_at": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "limit_minor": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "observed_minor": {
+                  "description": "What the total actually was at the crossing, so a fire explains itself without recomputation.",
+                  "type": "integer"
+                },
+                "percent": {
+                  "type": "integer"
+                },
+                "period_key": {
+                  "description": "The period the limit was crossed in, e.g. 2026-10. One crossing fires once, however many spends follow.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "budget_id",
+                "name",
+                "period_key",
+                "observed_minor",
+                "limit_minor",
+                "alert_minor",
+                "percent",
+                "currency",
+                "fired_at"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "budget_status_input": {
+        "additionalProperties": false,
+        "properties": {
+          "include_inactive": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "budget_status_output": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "alert_minor": {
+                  "description": "The amount the alert fires at, derived from limit_minor and notify_at_percent.",
+                  "type": "integer"
+                },
+                "alerted": {
+                  "type": "boolean"
+                },
+                "callback_token": {
+                  "description": "Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here.",
+                  "type": "string"
+                },
+                "category_id": {
+                  "description": "Empty for a budget on all spending.",
+                  "type": "string"
+                },
+                "category_name": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "currency": {
+                  "description": "A limit is meaningless without a currency, and currencies are never combined.",
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "description": "category when the budget covers one category, total when it covers all spending.",
+                  "type": "string"
+                },
+                "limit_minor": {
+                  "description": "The limit, in currency minor units.",
+                  "type": "integer"
+                },
+                "name": {
+                  "description": "Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess.",
+                  "type": "string"
+                },
+                "notify_at_percent": {
+                  "description": "Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act.",
+                  "type": "integer"
+                },
+                "percent": {
+                  "description": "May exceed 100 when the budget is over.",
+                  "type": "integer"
+                },
+                "period": {
+                  "description": "week or month — a calendar period, not a rolling window.",
+                  "type": "string"
+                },
+                "period_from": {
+                  "type": "string"
+                },
+                "period_key": {
+                  "description": "The period this status describes, e.g. 2026-10.",
+                  "type": "string"
+                },
+                "period_to": {
+                  "type": "string"
+                },
+                "remaining_minor": {
+                  "description": "Never negative: an exceeded budget reports zero left, not a negative allowance.",
+                  "type": "integer"
+                },
+                "spent_minor": {
+                  "type": "integer"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "version",
+                "name",
+                "kind",
+                "period",
+                "limit_minor",
+                "currency",
+                "notify_at_percent",
+                "active",
+                "created_at",
+                "updated_at",
+                "period_key",
+                "period_from",
+                "period_to",
+                "spent_minor",
+                "remaining_minor",
+                "percent",
+                "alert_minor",
+                "alerted"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "budgets_create_input": {
+        "additionalProperties": false,
+        "properties": {
+          "budget": {
+            "additionalProperties": false,
+            "properties": {
+              "callback_token": {
+                "type": "string"
+              },
+              "category_id": {
+                "description": "Omit to budget all spending.",
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "limit_minor": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "notify_at_percent": {
+                "description": "Defaults to 100.",
+                "type": "integer"
+              },
+              "period": {
+                "description": "week or month.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "period",
+              "limit_minor",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "idempotency_key": {
+            "description": "Unique request key, 1-128 characters. Reuse only to retry exactly the same operation and input.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "idempotency_key",
+          "budget"
+        ],
+        "type": "object"
+      },
+      "budgets_create_output": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "callback_token": {
+            "description": "Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here.",
+            "type": "string"
+          },
+          "category_id": {
+            "description": "Empty for a budget on all spending.",
+            "type": "string"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "currency": {
+            "description": "A limit is meaningless without a currency, and currencies are never combined.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "category when the budget covers one category, total when it covers all spending.",
+            "type": "string"
+          },
+          "limit_minor": {
+            "description": "The limit, in currency minor units.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess.",
+            "type": "string"
+          },
+          "notify_at_percent": {
+            "description": "Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act.",
+            "type": "integer"
+          },
+          "period": {
+            "description": "week or month — a calendar period, not a rolling window.",
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "kind",
+          "period",
+          "limit_minor",
+          "currency",
+          "notify_at_percent",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "budgets_delete_input": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "description": "Version last read; stale edits return conflict.",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Record UUID.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Unique request key, 1-128 characters. Reuse only to retry exactly the same operation and input.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "idempotency_key",
+          "id",
+          "expected_version"
+        ],
+        "type": "object"
+      },
+      "budgets_delete_output": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "callback_token": {
+            "description": "Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here.",
+            "type": "string"
+          },
+          "category_id": {
+            "description": "Empty for a budget on all spending.",
+            "type": "string"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "currency": {
+            "description": "A limit is meaningless without a currency, and currencies are never combined.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "category when the budget covers one category, total when it covers all spending.",
+            "type": "string"
+          },
+          "limit_minor": {
+            "description": "The limit, in currency minor units.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess.",
+            "type": "string"
+          },
+          "notify_at_percent": {
+            "description": "Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act.",
+            "type": "integer"
+          },
+          "period": {
+            "description": "week or month — a calendar period, not a rolling window.",
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "kind",
+          "period",
+          "limit_minor",
+          "currency",
+          "notify_at_percent",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "budgets_get_input": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "budgets_get_output": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "callback_token": {
+            "description": "Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here.",
+            "type": "string"
+          },
+          "category_id": {
+            "description": "Empty for a budget on all spending.",
+            "type": "string"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "currency": {
+            "description": "A limit is meaningless without a currency, and currencies are never combined.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "category when the budget covers one category, total when it covers all spending.",
+            "type": "string"
+          },
+          "limit_minor": {
+            "description": "The limit, in currency minor units.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess.",
+            "type": "string"
+          },
+          "notify_at_percent": {
+            "description": "Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act.",
+            "type": "integer"
+          },
+          "period": {
+            "description": "week or month — a calendar period, not a rolling window.",
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "kind",
+          "period",
+          "limit_minor",
+          "currency",
+          "notify_at_percent",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "budgets_list_input": {
+        "additionalProperties": false,
+        "properties": {
+          "include_inactive": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "budgets_list_output": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "callback_token": {
+                  "description": "Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here.",
+                  "type": "string"
+                },
+                "category_id": {
+                  "description": "Empty for a budget on all spending.",
+                  "type": "string"
+                },
+                "category_name": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "currency": {
+                  "description": "A limit is meaningless without a currency, and currencies are never combined.",
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "description": "category when the budget covers one category, total when it covers all spending.",
+                  "type": "string"
+                },
+                "limit_minor": {
+                  "description": "The limit, in currency minor units.",
+                  "type": "integer"
+                },
+                "name": {
+                  "description": "Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess.",
+                  "type": "string"
+                },
+                "notify_at_percent": {
+                  "description": "Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act.",
+                  "type": "integer"
+                },
+                "period": {
+                  "description": "week or month — a calendar period, not a rolling window.",
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "version",
+                "name",
+                "kind",
+                "period",
+                "limit_minor",
+                "currency",
+                "notify_at_percent",
+                "active",
+                "created_at",
+                "updated_at"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "budgets_update_input": {
+        "additionalProperties": false,
+        "properties": {
+          "budget": {
+            "additionalProperties": false,
+            "description": "Category and kind are fixed at creation; delete and recreate to move a budget to another category.",
+            "properties": {
+              "callback_token": {
+                "type": "string"
+              },
+              "category_id": {
+                "description": "Omit to budget all spending.",
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "limit_minor": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "notify_at_percent": {
+                "description": "Defaults to 100.",
+                "type": "integer"
+              },
+              "period": {
+                "description": "week or month.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "period",
+              "limit_minor",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "expected_version": {
+            "description": "Version last read; stale edits return conflict.",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Record UUID.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "expected_version",
+          "budget"
+        ],
+        "type": "object"
+      },
+      "budgets_update_output": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "callback_token": {
+            "description": "Opaque credential minted by the waking side. Echoed back when a crossing is delivered; never interpreted here.",
+            "type": "string"
+          },
+          "category_id": {
+            "description": "Empty for a budget on all spending.",
+            "type": "string"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "currency": {
+            "description": "A limit is meaningless without a currency, and currencies are never combined.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "category when the budget covers one category, total when it covers all spending.",
+            "type": "string"
+          },
+          "limit_minor": {
+            "description": "The limit, in currency minor units.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Unique per user, ignoring case. Name it deliberately, so a duplicate is a collision you meant rather than a guess.",
+            "type": "string"
+          },
+          "notify_at_percent": {
+            "description": "Alert when this percentage of the limit is reached. 100 fires only on going over; 80 warns with room left to act.",
+            "type": "integer"
+          },
+          "period": {
+            "description": "week or month — a calendar period, not a rolling window.",
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "kind",
+          "period",
+          "limit_minor",
+          "currency",
+          "notify_at_percent",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "categories_create_input": {
         "additionalProperties": false,
         "properties": {
@@ -4944,6 +5676,671 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/operations/budget_fires_list": {
+      "post": {
+        "description": "Read the alert lines your budgets have crossed, newest first — what they noticed and when.",
+        "operationId": "budget_fires_list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/budget_fires_list_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/budget_fires_list_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "budget_fires_list",
+        "x-read-only": true
+      }
+    },
+    "/api/v1/operations/budget_status": {
+      "post": {
+        "description": "How every budget is doing in the current period: spent, remaining, percent used, and whether the alert line has been crossed. Computed from live spending.",
+        "operationId": "budget_status",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/budget_status_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/budget_status_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "budget_status",
+        "x-read-only": true
+      }
+    },
+    "/api/v1/operations/budgets_create": {
+      "post": {
+        "description": "Set a spending limit for a calendar period, on one category or on all spending, with the percentage of it that should raise an alert. Evaluated when a spend is written, so a crossing is caught as it happens.",
+        "operationId": "budgets_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/budgets_create_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/budgets_create_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "budgets_create",
+        "x-read-only": false
+      }
+    },
+    "/api/v1/operations/budgets_delete": {
+      "post": {
+        "description": "Remove a budget. It is soft-deleted and the crossings it already recorded are kept.",
+        "operationId": "budgets_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/budgets_delete_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/budgets_delete_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "budgets_delete",
+        "x-read-only": false
+      }
+    },
+    "/api/v1/operations/budgets_get": {
+      "post": {
+        "description": "Read one budget by ID.",
+        "operationId": "budgets_get",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/budgets_get_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/budgets_get_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "budgets_get",
+        "x-read-only": true
+      }
+    },
+    "/api/v1/operations/budgets_list": {
+      "post": {
+        "description": "List your budgets, active ones by default.",
+        "operationId": "budgets_list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/budgets_list_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/budgets_list_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "budgets_list",
+        "x-read-only": true
+      }
+    },
+    "/api/v1/operations/budgets_update": {
+      "post": {
+        "description": "Change a budget's name, period, limit, currency or alert percentage. Its category is fixed at creation.",
+        "operationId": "budgets_update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/budgets_update_input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/budgets_update_output"
+                }
+              }
+            },
+            "description": "Operation result"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unverified identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Stale version, conflicting identity, or record in use"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Request body exceeds 4 MiB"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "routerBearer": []
+          }
+        ],
+        "x-mcp-tool": "budgets_update",
+        "x-read-only": false
+      }
+    },
     "/api/v1/operations/categories_create": {
       "post": {
         "description": "Create a category. Names are unique per user, ignoring case.",

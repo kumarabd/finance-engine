@@ -95,4 +95,47 @@ func (s *Service) registerOperations() {
 			return linkEvidence(ctx, u, in, false)
 		})
 	register(s, "history_list", "Read the complete paginated before/after change history for a record, including actor and operation.", false, history)
+
+	// Budgets — a limit you set, and the crossing you get told about.
+	//
+	// Named for the use case, not for the mechanism. These operations ARE the
+	// tools an agent picks by, so "keep me to 20k on dining this month" has to map
+	// onto `budgets_create` with a category and a limit directly — against a
+	// generic `subscriptions_create(kind=..., threshold_minor=...)` the model must
+	// first infer which kind, which period, and that the amount is in minor units,
+	// and three inferences are three ways to get it wrong. Nothing else in this
+	// engine's operations is generic either; there is no objects_create(kind=...)
+	// anywhere.
+	//
+	// The limit is evaluated when a spend is written, so a crossing is caught as
+	// it happens. Recording one is this engine's job; delivering it belongs to the
+	// waking side.
+	register(s, "budgets_create", "Set a spending limit for a calendar period, on one category or on all spending, with the percentage of it that should raise an alert. Evaluated when a spend is written, so a crossing is caught as it happens.", true,
+		func(ctx context.Context, u *unit, in CreateBudgetInput) (Budget, error) {
+			return u.createBudget(ctx, in.Budget)
+		})
+	register(s, "budgets_list", "List your budgets, active ones by default.", false,
+		func(ctx context.Context, u *unit, in ListBudgetsInput) (BudgetsResult, error) {
+			return u.listBudgets(ctx, in)
+		})
+	register(s, "budgets_get", "Read one budget by ID.", false,
+		func(ctx context.Context, u *unit, in GetInput) (Budget, error) {
+			return u.getBudget(ctx, in.ID)
+		})
+	register(s, "budgets_update", "Change a budget's name, period, limit, currency or alert percentage. Its category is fixed at creation.", true,
+		func(ctx context.Context, u *unit, in UpdateBudgetInput) (Budget, error) {
+			return u.updateBudget(ctx, in.ID, in.ExpectedVersion, in.Budget)
+		})
+	register(s, "budgets_delete", "Remove a budget. It is soft-deleted and the crossings it already recorded are kept.", true,
+		func(ctx context.Context, u *unit, in LifecycleInput) (Budget, error) {
+			return u.deleteBudget(ctx, in)
+		})
+	register(s, "budget_status", "How every budget is doing in the current period: spent, remaining, percent used, and whether the alert line has been crossed. Computed from live spending.", false,
+		func(ctx context.Context, u *unit, in StatusInput) (StatusResult, error) {
+			return u.budgetStatus(ctx, in)
+		})
+	register(s, "budget_fires_list", "Read the alert lines your budgets have crossed, newest first — what they noticed and when.", false,
+		func(ctx context.Context, u *unit, in ListFiresInput) (FiresResult, error) {
+			return u.listBudgetFires(ctx, in)
+		})
 }
